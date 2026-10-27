@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<title>Долина винахідників</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=Rubik:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<header class="bar">
+  <div class="brand">
+    <h1>Долина винахідників</h1>
+    <span class="era" id="era">Кам'яна доба</span>
+  </div>
+  <div class="clock">
+    <span class="day" id="day">День 1</span>
+    <span class="sun" id="sun" aria-hidden="true"></span>
+  </div>
+  <div class="controls" role="group" aria-label="Швидкість часу">
+    <button id="pause" class="ctl" aria-label="Пауза">❚❚</button>
+    <button class="ctl spd" data-s="1">1×</button>
+    <button class="ctl spd" data-s="4">4×</button>
+    <button class="ctl spd" data-s="15">15×</button>
+    <button class="ctl spd" data-s="50">50×</button>
+  </div>
+</header>
+
+<section class="stats" id="stats" aria-label="Стан поселення"></section>
+
+<main class="layout">
+  <div class="stage">
+    <div class="canvas-box">
+      <div class="canvas-wrap" id="canvasWrap"><canvas id="world" aria-label="Карта долини"></canvas></div>
+      <div class="zoom" role="group" aria-label="Масштаб">
+        <button class="ctl" id="zoomIn" aria-label="Наблизити">＋</button>
+        <button class="ctl" id="zoomOut" aria-label="Віддалити">－</button>
+      </div>
+    </div>
+    <p class="legend">
+      <span><i class="lg" style="background:#f1ece2"></i>кріль</span>
+      <span><i class="lg" style="background:#9a6a3a"></i>олень</span>
+      <span><i class="lg" style="background:#4b4f55"></i>вовк</span>
+      <span><i class="lg dia" style="background:#3fbf8f"></i>руда</span>
+      <span><i class="lg" style="background:#ffcf5a"></i>дослід</span>
+      <span class="hint">Торкніться поселенця, щоб стежити за ним.</span>
+    </p>
+  </div>
+
+  <aside class="panel">
+    <nav class="tabs" role="tablist">
+      <button class="tab on" data-tab="chron" role="tab">Хроніка</button>
+      <button class="tab" data-tab="people" role="tab">Мешканці</button>
+      <button class="tab" data-tab="disc" role="tab">Відкриття</button>
+      <button class="tab" data-tab="brain" role="tab">Мозок</button>
+    </nav>
+
+    <div class="pane on" id="pane-chron">
+      <div class="chips" id="chronFilter">
+        <button class="chip on" data-f="all">Усе</button>
+        <button class="chip" data-f="discovery">Відкриття</button>
+        <button class="chip" data-f="idea">Ідеї</button>
+        <button class="chip" data-f="talk">Розмови</button>
+        <button class="chip" data-f="life">Життя</button>
+      </div>
+      <ol class="chron" id="chron"></ol>
+    </div>
+
+    <div class="pane" id="pane-people">
+      <div id="person"></div>
+      <ul class="people" id="people"></ul>
+    </div>
+
+    <div class="pane" id="pane-disc">
+      <div id="disc"></div>
+    </div>
+
+    <div class="pane" id="pane-brain">
+      <section class="card">
+        <h2>LLM-мозок</h2>
+        <p class="muted">Без LLM поселенці думають за правилами і вчаться на заохоченнях. З LLM безкоштовна відкрита модель вигадує їхні експерименти та розмови, а рушій фізики перевіряє, чи це справді працює.</p>
+        <label class="row switch"><input type="checkbox" id="llmOn"> <span>Під'єднати модель</span></label>
+        <div class="grid2">
+          <label for="llmProv">Сервер</label>
+          <select id="llmProv"><option value="ollama">Ollama</option><option value="openai">OpenAI-сумісний (LM Studio, llama.cpp…)</option></select>
+          <label for="llmUrl">Адреса</label>
+          <input id="llmUrl" type="text" spellcheck="false">
+          <label for="llmModel">Модель</label>
+          <input id="llmModel" type="text" spellcheck="false" list="llmModels">
+          <datalist id="llmModels"></datalist>
+          <label for="llmKey">Ключ API</label>
+          <input id="llmKey" type="password" placeholder="не потрібен для Ollama">
+        </div>
+        <label class="row"><input type="checkbox" id="llmPlans"> <span>Модель вигадує експерименти</span></label>
+        <label class="row"><input type="checkbox" id="llmChat"> <span>Модель пише розмови</span></label>
+        <div class="row gap"><button class="btn" id="llmTest">Перевірити з'єднання</button><span class="status" id="llmStatus"></span></div>
+        <ol class="llmlog" id="llmLog"></ol>
+      </section>
+      <section class="card">
+        <h2>Як під'єднати безкоштовну модель</h2>
+        <ol class="steps">
+          <li>Встановіть <b>Ollama</b> (ollama.com) і завантажте модель: <code>ollama pull qwen2.5:3b</code> (або <code>llama3.2:3b</code>, <code>gemma2:2b</code>; на сильнішому ПК — <code>qwen2.5:7b</code>).</li>
+          <li>Дозвольте сторінці звертатися до Ollama: <code>OLLAMA_ORIGINS="*" ollama serve</code> (Windows PowerShell: <code>$env:OLLAMA_ORIGINS="*"; ollama serve</code>).</li>
+          <li>Відкрийте гру з файлу <code>index.html</code> із репозиторію у себе на комп'ютері, увімкніть перемикач угорі й натисніть «Перевірити з'єднання».</li>
+        </ol>
+        <p class="muted">У веб-версії гри, відкритій із Claude, з'єднання зі сторонніми серверами заблоковані, тому там працює лише мозок на правилах.</p>
+      </section>
+      <section class="card">
+        <h2>Як це влаштовано</h2>
+        <ul class="plain">
+          <li><b>Закони природи</b> — властивості матеріалів, температура полум'я, піч, міхи, межа жаростійкості стін, сплави та композити. Їх знає лише світ.</li>
+          <li><b>Ідеї</b> народжуються з проблем: «жару замало», «риба близько», «носити важко». Як саме втілити ідею, поселенці шукають самі.</li>
+          <li><b>Натхнення</b>: нове знання +2, навчити іншого +4, новий матеріал +15, матеріал кращий за відомі +20, робочий винахід до +40, покращення +10, невдача +1, бонус автору, коли інші користуються винаходом. Поселенці частіше роблять те, що приносить натхнення.</li>
+          <li><b>Нові матеріали</b>: якщо склад збігається з реальним (бронза, спекулум, сталь, саман…), матеріал отримує справжню назву; якщо ні — вигадану з поясненням і найближчим відомим аналогом.</li>
+        </ul>
+        <div class="row gap"><button class="btn" id="newWorld">Новий світ</button><span class="muted" id="seedLbl"></span></div>
+      </section>
+    </div>
+  </aside>
+</main>
+
+<script src="js/data.js"></script>
+<script src="js/world.js"></script>
+<script src="js/sim.js"></script>
+<script src="js/llm.js"></script>
+<script src="js/render.js"></script>
+<script src="js/ui.js"></script>
+</body>
+</html>

@@ -1,0 +1,2364 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<title>Долина винахідників</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=Rubik:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Польова станція спостереження: карта — головна, журнал — збоку */
+:root {
+  --bg: #e4e9ee;
+  --panel: #f6f8fa;
+  --ink: #17202a;
+  --muted: #5b6977;
+  --line: #cdd5dd;
+  --accent: #c47f12;
+  --accent-ink: #ffffff;
+  --teal: #2a7570;
+  --soft: #e9eef3;
+  --bad: #b03a3a;
+  --display: 'Unbounded', 'Rubik', system-ui, sans-serif;
+  --body: 'Rubik', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+  --r: 10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e1318; --panel: #161d25; --ink: #e2e8ee; --muted: #91a0ae; --line: #28323d;
+    --accent: #f0a73a; --accent-ink: #1a1206; --teal: #56b8ae; --soft: #1c252f; --bad: #e07070;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e1318; --panel: #161d25; --ink: #e2e8ee; --muted: #91a0ae; --line: #28323d;
+  --accent: #f0a73a; --accent-ink: #1a1206; --teal: #56b8ae; --soft: #1c252f; --bad: #e07070;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--bg); color: var(--ink);
+  font: 14px/1.5 var(--body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 12px 24px;
+}
+button, input, select { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ---------- верхня смуга ---------- */
+.bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; max-width: 1400px; margin: 0 auto; }
+.brand { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; min-width: 0; }
+h1 { font: 700 clamp(18px, 2.6vw, 26px)/1.1 var(--display); margin: 0; letter-spacing: -0.01em; text-wrap: balance; }
+.era { font: 600 11px/1 var(--mono); text-transform: uppercase; letter-spacing: 0.08em; color: var(--accent); border: 1px solid currentColor; border-radius: 99px; padding: 5px 9px; }
+.clock { display: flex; align-items: center; gap: 8px; margin-left: auto; font: 600 13px var(--mono); font-variant-numeric: tabular-nums; }
+.sun { width: 54px; height: 10px; border-radius: 99px; background: linear-gradient(90deg, #1d2a4a, #f2c56b 30%, #f7e3a1 50%, #f2c56b 70%, #1d2a4a); position: relative; overflow: hidden; }
+.sun::after { content: ''; position: absolute; top: -1px; left: var(--p, 0%); width: 3px; height: 12px; background: var(--ink); }
+.controls { display: flex; gap: 4px; }
+.ctl { border: 1px solid var(--line); background: var(--panel); border-radius: 8px; padding: 6px 10px; min-width: 40px; font: 600 12px var(--mono); }
+.ctl.on { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+
+/* ---------- показники ---------- */
+.stats { max-width: 1400px; margin: 12px auto 12px; display: flex; flex-wrap: wrap; gap: 6px 20px; font-size: 13px; color: var(--muted); }
+.stats b { color: var(--ink); font: 600 15px var(--mono); font-variant-numeric: tabular-nums; margin-right: 4px; }
+
+/* ---------- розкладка ---------- */
+.layout { max-width: 1400px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1fr) 400px; gap: 16px; align-items: start; }
+@media (max-width: 960px) { .layout { grid-template-columns: minmax(0, 1fr); } }
+.stage { min-width: 0; }
+.canvas-box { position: relative; }
+.canvas-wrap { width: 100%; border-radius: var(--r); overflow: auto; background: #1f4f73; line-height: 0; max-height: 78vh; overscroll-behavior: contain; }
+.zoom { position: absolute; right: 8px; bottom: 8px; display: flex; gap: 4px; }
+.zoom .ctl { background: color-mix(in srgb, var(--panel) 88%, transparent); min-width: 34px; font-size: 15px; padding: 4px 8px; }
+canvas { display: block; touch-action: manipulation; cursor: pointer; max-width: none; }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; color: var(--muted); margin: 8px 2px 0; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.lg { width: 10px; height: 10px; border-radius: 50%; display: inline-block; border: 1px solid rgba(0,0,0,0.3); }
+.lg.dia { border-radius: 1px; transform: rotate(45deg); }
+.legend .hint { margin-left: auto; }
+
+/* ---------- бічна панель ---------- */
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); min-width: 0; display: flex; flex-direction: column; max-height: calc(100vh - 140px); }
+@media (max-width: 960px) { .panel { max-height: none; } }
+.tabs { display: grid; grid-template-columns: repeat(4, 1fr); border-bottom: 1px solid var(--line); }
+.tab { background: none; border: 0; padding: 12px 4px; font-weight: 500; color: var(--muted); border-bottom: 2px solid transparent; }
+.tab.on { color: var(--ink); border-bottom-color: var(--accent); }
+.pane { display: none; overflow-y: auto; padding: 14px; min-height: 0; }
+.pane.on { display: block; }
+@media (max-width: 960px) { .pane { max-height: 70vh; } }
+h2 { font: 600 13px/1.3 var(--display); margin: 0 0 8px; letter-spacing: 0.01em; }
+h3 { font-size: 13px; margin: 14px 0 6px; color: var(--muted); font-weight: 500; text-transform: uppercase; letter-spacing: 0.06em; }
+.muted { color: var(--muted); }
+.card { border-bottom: 1px solid var(--line); padding-bottom: 14px; margin-bottom: 14px; }
+.card:last-child { border-bottom: 0; }
+
+/* хроніка */
+.chips { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+.chip { border: 1px solid var(--line); background: none; border-radius: 99px; padding: 4px 10px; font-size: 12px; }
+.chip.on { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.chron { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.chron li { display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 8px; padding: 6px 4px; border-radius: 6px; font-size: 13px; }
+.chron li .d { font: 600 11px var(--mono); color: var(--muted); padding-top: 2px; font-variant-numeric: tabular-nums; }
+.chron li.discovery { background: color-mix(in srgb, var(--accent) 13%, transparent); }
+.chron li.discovery .t { font-weight: 500; }
+.chron li.era { background: var(--ink); color: var(--bg); }
+.chron li.era .d { color: inherit; opacity: 0.7; }
+.chron li.idea .t { color: var(--teal); }
+.chron li.death .t { color: var(--bad); }
+.chron li.talk .t { font-style: italic; }
+.chron li .who { cursor: pointer; text-decoration: underline dotted; }
+
+/* мешканці */
+.people { list-style: none; margin: 0; padding: 0; }
+.people li { display: grid; grid-template-columns: 14px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 8px 6px; border-radius: 8px; cursor: pointer; }
+.people li:hover, .people li.sel { background: var(--soft); }
+.dot { width: 12px; height: 12px; border-radius: 50%; border: 1.5px solid #141a20; }
+.people .nm { font-weight: 500; }
+.people .act { font-size: 12px; color: var(--muted); display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.score { font: 600 13px var(--mono); color: var(--accent); font-variant-numeric: tabular-nums; text-align: right; }
+.score small { display: block; font-weight: 400; color: var(--muted); font-size: 10px; }
+
+.person { border: 1px solid var(--line); border-radius: var(--r); padding: 12px; margin-bottom: 14px; background: var(--bg); }
+.person .head { display: flex; align-items: center; gap: 10px; }
+.person .head .nm { font: 600 16px var(--display); }
+.person .close { margin-left: auto; background: none; border: 1px solid var(--line); border-radius: 6px; padding: 2px 8px; }
+.thought { margin: 8px 0; padding: 8px 10px; background: var(--panel); border-radius: 8px; font-size: 13px; }
+.thought.llm::before { content: 'LLM · '; font: 600 10px var(--mono); color: var(--teal); }
+.meters { display: grid; grid-template-columns: auto minmax(0, 1fr) 34px; gap: 4px 8px; align-items: center; font-size: 12px; }
+.meter { height: 6px; background: var(--line); border-radius: 99px; overflow: hidden; }
+.meter i { display: block; height: 100%; background: var(--teal); border-radius: 99px; }
+.meter.warn i { background: var(--bad); }
+.meter.gold i { background: var(--accent); }
+.meters .v { font: 11px var(--mono); color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
+.reward { font-size: 12px; color: var(--accent); margin-top: 6px; }
+.tags { display: flex; flex-wrap: wrap; gap: 4px; }
+.tag { font-size: 11px; padding: 2px 7px; border-radius: 99px; background: var(--panel); border: 1px solid var(--line); }
+.tag.d { border-color: var(--accent); color: var(--accent); }
+.tag.i { border-color: var(--teal); color: var(--teal); }
+.hist { list-style: none; margin: 0; padding: 0; font-size: 12px; color: var(--muted); display: grid; gap: 3px; }
+
+/* відкриття */
+.timeline { display: flex; gap: 3px; margin: 4px 0 14px; flex-wrap: wrap; }
+.timeline span { font: 500 10px var(--mono); padding: 4px 6px; border-radius: 4px; background: var(--soft); color: var(--muted); }
+.timeline span.on { background: var(--accent); color: var(--accent-ink); }
+.dev { padding: 9px 0; border-bottom: 1px dashed var(--line); font-size: 13px; }
+.dev:last-child { border-bottom: 0; }
+.dev .top { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.dev .top b { font-weight: 600; }
+.q { font: 600 11px var(--mono); color: var(--teal); }
+.dev .how { color: var(--muted); font-size: 12px; }
+.mats { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; }
+.mat { border: 1px solid var(--line); border-radius: 8px; padding: 7px 8px; font-size: 12px; background: var(--bg); min-width: 0; cursor: pointer; text-align: left; }
+.mat .sw { width: 10px; height: 10px; border-radius: 2px; display: inline-block; margin-right: 5px; vertical-align: -1px; border: 1px solid rgba(0,0,0,0.3); }
+.mat .k { display: block; font: 10px var(--mono); color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-top: 2px; }
+.mat.new { border-color: var(--accent); }
+.mat.real .k { color: var(--teal); }
+.matinfo { margin: 10px 0; padding: 10px; border-radius: 8px; background: var(--bg); border: 1px solid var(--line); font-size: 13px; }
+
+/* мозок */
+.grid2 { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px 10px; align-items: center; margin: 10px 0; font-size: 13px; }
+.grid2 input, .grid2 select { width: 100%; min-width: 0; border: 1px solid var(--line); background: var(--bg); border-radius: 6px; padding: 6px 8px; }
+.row { display: flex; align-items: center; gap: 8px; margin: 6px 0; font-size: 13px; }
+.row.gap { gap: 10px; flex-wrap: wrap; margin-top: 10px; }
+.switch span { font-weight: 600; }
+.btn { border: 1px solid var(--ink); background: var(--ink); color: var(--bg); border-radius: 8px; padding: 7px 12px; font-weight: 500; }
+.status { font: 12px var(--mono); color: var(--muted); }
+.steps { padding-left: 18px; margin: 0; font-size: 13px; display: grid; gap: 6px; }
+code { font: 12px var(--mono); background: var(--soft); padding: 1px 5px; border-radius: 4px; word-break: break-word; }
+.plain { padding-left: 18px; margin: 0; font-size: 13px; display: grid; gap: 6px; }
+.llmlog { list-style: none; padding: 0; margin: 10px 0 0; display: grid; gap: 6px; font-size: 12px; }
+.llmlog li { padding: 6px 8px; border-left: 2px solid var(--teal); background: var(--bg); border-radius: 0 6px 6px 0; }
+.llmlog li.bad { border-left-color: var(--bad); }
+
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+</style>
+</head>
+<body>
+<header class="bar">
+  <div class="brand">
+    <h1>Долина винахідників</h1>
+    <span class="era" id="era">Кам'яна доба</span>
+  </div>
+  <div class="clock">
+    <span class="day" id="day">День 1</span>
+    <span class="sun" id="sun" aria-hidden="true"></span>
+  </div>
+  <div class="controls" role="group" aria-label="Швидкість часу">
+    <button id="pause" class="ctl" aria-label="Пауза">❚❚</button>
+    <button class="ctl spd" data-s="1">1×</button>
+    <button class="ctl spd" data-s="4">4×</button>
+    <button class="ctl spd" data-s="15">15×</button>
+    <button class="ctl spd" data-s="50">50×</button>
+  </div>
+</header>
+
+<section class="stats" id="stats" aria-label="Стан поселення"></section>
+
+<main class="layout">
+  <div class="stage">
+    <div class="canvas-box">
+      <div class="canvas-wrap" id="canvasWrap"><canvas id="world" aria-label="Карта долини"></canvas></div>
+      <div class="zoom" role="group" aria-label="Масштаб">
+        <button class="ctl" id="zoomIn" aria-label="Наблизити">＋</button>
+        <button class="ctl" id="zoomOut" aria-label="Віддалити">－</button>
+      </div>
+    </div>
+    <p class="legend">
+      <span><i class="lg" style="background:#f1ece2"></i>кріль</span>
+      <span><i class="lg" style="background:#9a6a3a"></i>олень</span>
+      <span><i class="lg" style="background:#4b4f55"></i>вовк</span>
+      <span><i class="lg dia" style="background:#3fbf8f"></i>руда</span>
+      <span><i class="lg" style="background:#ffcf5a"></i>дослід</span>
+      <span class="hint">Торкніться поселенця, щоб стежити за ним.</span>
+    </p>
+  </div>
+
+  <aside class="panel">
+    <nav class="tabs" role="tablist">
+      <button class="tab on" data-tab="chron" role="tab">Хроніка</button>
+      <button class="tab" data-tab="people" role="tab">Мешканці</button>
+      <button class="tab" data-tab="disc" role="tab">Відкриття</button>
+      <button class="tab" data-tab="brain" role="tab">Мозок</button>
+    </nav>
+
+    <div class="pane on" id="pane-chron">
+      <div class="chips" id="chronFilter">
+        <button class="chip on" data-f="all">Усе</button>
+        <button class="chip" data-f="discovery">Відкриття</button>
+        <button class="chip" data-f="idea">Ідеї</button>
+        <button class="chip" data-f="talk">Розмови</button>
+        <button class="chip" data-f="life">Життя</button>
+      </div>
+      <ol class="chron" id="chron"></ol>
+    </div>
+
+    <div class="pane" id="pane-people">
+      <div id="person"></div>
+      <ul class="people" id="people"></ul>
+    </div>
+
+    <div class="pane" id="pane-disc">
+      <div id="disc"></div>
+    </div>
+
+    <div class="pane" id="pane-brain">
+      <section class="card">
+        <h2>LLM-мозок</h2>
+        <p class="muted">Без LLM поселенці думають за правилами і вчаться на заохоченнях. З LLM безкоштовна відкрита модель вигадує їхні експерименти та розмови, а рушій фізики перевіряє, чи це справді працює.</p>
+        <label class="row switch"><input type="checkbox" id="llmOn"> <span>Під'єднати модель</span></label>
+        <div class="grid2">
+          <label for="llmProv">Сервер</label>
+          <select id="llmProv"><option value="ollama">Ollama</option><option value="openai">OpenAI-сумісний (LM Studio, llama.cpp…)</option></select>
+          <label for="llmUrl">Адреса</label>
+          <input id="llmUrl" type="text" spellcheck="false">
+          <label for="llmModel">Модель</label>
+          <input id="llmModel" type="text" spellcheck="false" list="llmModels">
+          <datalist id="llmModels"></datalist>
+          <label for="llmKey">Ключ API</label>
+          <input id="llmKey" type="password" placeholder="не потрібен для Ollama">
+        </div>
+        <label class="row"><input type="checkbox" id="llmPlans"> <span>Модель вигадує експерименти</span></label>
+        <label class="row"><input type="checkbox" id="llmChat"> <span>Модель пише розмови</span></label>
+        <div class="row gap"><button class="btn" id="llmTest">Перевірити з'єднання</button><span class="status" id="llmStatus"></span></div>
+        <ol class="llmlog" id="llmLog"></ol>
+      </section>
+      <section class="card">
+        <h2>Як під'єднати безкоштовну модель</h2>
+        <ol class="steps">
+          <li>Встановіть <b>Ollama</b> (ollama.com) і завантажте модель: <code>ollama pull qwen2.5:3b</code> (або <code>llama3.2:3b</code>, <code>gemma2:2b</code>; на сильнішому ПК — <code>qwen2.5:7b</code>).</li>
+          <li>Дозвольте сторінці звертатися до Ollama: <code>OLLAMA_ORIGINS="*" ollama serve</code> (Windows PowerShell: <code>$env:OLLAMA_ORIGINS="*"; ollama serve</code>).</li>
+          <li>Відкрийте гру з файлу <code>index.html</code> із репозиторію у себе на комп'ютері, увімкніть перемикач угорі й натисніть «Перевірити з'єднання».</li>
+        </ol>
+        <p class="muted">У веб-версії гри, відкритій із Claude, з'єднання зі сторонніми серверами заблоковані, тому там працює лише мозок на правилах.</p>
+      </section>
+      <section class="card">
+        <h2>Як це влаштовано</h2>
+        <ul class="plain">
+          <li><b>Закони природи</b> — властивості матеріалів, температура полум'я, піч, міхи, межа жаростійкості стін, сплави та композити. Їх знає лише світ.</li>
+          <li><b>Ідеї</b> народжуються з проблем: «жару замало», «риба близько», «носити важко». Як саме втілити ідею, поселенці шукають самі.</li>
+          <li><b>Натхнення</b>: нове знання +2, навчити іншого +4, новий матеріал +15, матеріал кращий за відомі +20, робочий винахід до +40, покращення +10, невдача +1, бонус автору, коли інші користуються винаходом. Поселенці частіше роблять те, що приносить натхнення.</li>
+          <li><b>Нові матеріали</b>: якщо склад збігається з реальним (бронза, спекулум, сталь, саман…), матеріал отримує справжню назву; якщо ні — вигадану з поясненням і найближчим відомим аналогом.</li>
+        </ul>
+        <div class="row gap"><button class="btn" id="newWorld">Новий світ</button><span class="muted" id="seedLbl"></span></div>
+      </section>
+    </div>
+  </aside>
+</main>
+
+<script>
+/* ============================================================
+   Долина винахідників — «закони природи»
+   Властивості матеріалів, закони нагрівання, генератор
+   сплавів і композитів, реальний каталог матеріалів,
+   ідеї пристроїв і перевірка їхньої роботи.
+   NPC цих таблиць не бачать: вони лише пробують, а світ відповідає.
+   ============================================================ */
+(function (V) {
+  'use strict';
+
+  const clamp = (x, a = 0, b = 1.5) => Math.max(a, Math.min(b, x));
+  V.clamp = clamp;
+
+  /* ---------- Матеріали ----------
+     hard  твердість (0–10, приблизно за Моосом)
+     tough міцність / ударна в'язкість (0–10)
+     flex  гнучкість (0–10)       tensile міцність на розрив (0–10)
+     dens  густина, г/см³          wp   водонепроникність (0–1)
+     hp    жаростійкість, °C       mp   температура плавлення (метали), °C
+     fuel  макс. температура полум'я, °C
+     sharp здатність тримати гостре лезо (0–1)
+     trans прозорість  cond електропровідність  pot електродний потенціал, В
+     ion   іонна провідність (електроліт)        food поживність
+     plast пластичність  air герметичність  binder в'язучі властивості
+  */
+  const M = {};
+  function mat(id, name, kind, props, extra = {}) {
+    M[id] = Object.assign({
+      id, name, kind,
+      hard: 0, tough: 0, flex: 0, tensile: 0, dens: 1, wp: 0, hp: 300, mp: 0, fuel: 0,
+      sharp: 0, trans: 0, cond: 0, pot: 0, ion: 0, food: 0, plast: 0, air: 0, binder: 0,
+    }, props, extra);
+  }
+
+  // природні
+  mat('wood', 'деревина', 'organic', { hard: 3, tough: 6, flex: 4, tensile: 5, dens: 0.7, wp: 0.4, hp: 250, fuel: 600, sharp: 0.2 }, { color: '#9a6b3c' });
+  mat('fiber', 'рослинне волокно', 'organic', { hard: 0.5, tough: 2, flex: 9, tensile: 6, dens: 0.5, wp: 0.1, hp: 200 }, { color: '#b9c46a' });
+  mat('resin', 'смола', 'organic', { hard: 1, tough: 2, flex: 3, tensile: 2, dens: 1.05, wp: 1, hp: 150, plast: 7, binder: 0.6 }, { color: '#c98a2e' });
+  mat('stone', 'камінь', 'mineral', { hard: 6, tough: 3, dens: 2.6, wp: 1, hp: 1200, sharp: 0.4 }, { color: '#8d8a86' });
+  mat('flint', 'кремінь', 'mineral', { hard: 7, tough: 2, dens: 2.6, wp: 1, hp: 1000, sharp: 1 }, { color: '#4f5560' });
+  mat('clay', 'глина', 'mineral', { hard: 1, tough: 1, dens: 1.8, wp: 0.3, hp: 600, plast: 9, binder: 0.4 }, { color: '#b5734f' });
+  mat('sand', 'пісок', 'mineral', { hard: 6, tough: 0.5, dens: 1.6, hp: 1700 }, { color: '#dcc68d' });
+  mat('limestone', 'вапняк', 'mineral', { hard: 3, tough: 2, dens: 2.5, wp: 0.8, hp: 800 }, { color: '#d8d4c4' });
+  mat('salt', 'сіль', 'mineral', { hard: 2, tough: 0.5, dens: 2.2, ion: 1 }, { color: '#eef0f2' });
+  mat('water', 'вода', 'liquid', { dens: 1, ion: 0.1, hp: 100 }, { color: '#4a8fc4' });
+  mat('copper_ore', 'мідна руда (малахіт)', 'ore', { hard: 4, tough: 2, dens: 4, hp: 1000 }, { color: '#3e9b7a' });
+  mat('tin_ore', 'олов\'яна руда (каситерит)', 'ore', { hard: 6, tough: 2, dens: 7, hp: 1100 }, { color: '#5b4a3e' });
+  mat('lead_ore', 'свинцева руда (галеніт)', 'ore', { hard: 2.5, tough: 2, dens: 7.5, hp: 1000 }, { color: '#7d8590' });
+  mat('iron_ore', 'залізна руда (гематит)', 'ore', { hard: 5.5, tough: 2, dens: 5, hp: 1500 }, { color: '#8b3a2a' });
+  mat('coal', 'кам\'яне вугілля', 'fuel', { hard: 2, tough: 1, dens: 1.3, fuel: 1200, hp: 300 }, { color: '#2a2a2e' });
+  mat('berries', 'ягоди', 'food', { food: 15, dens: 1 }, { color: '#b23a5b' });
+  mat('meat', 'сире м\'ясо', 'food', { food: 30, dens: 1 }, { color: '#b5524a' });
+  mat('fish', 'риба', 'food', { food: 25, dens: 1 }, { color: '#9fb7c9' });
+  mat('hide', 'шкура', 'organic', { hard: 1, tough: 5, flex: 7, tensile: 5, dens: 0.9, wp: 0.6, hp: 120, air: 0.8 }, { color: '#a5835f' });
+  mat('bone', 'кістка', 'organic', { hard: 4, tough: 4, dens: 1.9, hp: 600, sharp: 0.9 }, { color: '#e6dcc3' });
+
+  // отримувані законами природи
+  mat('cooked', 'приготована їжа', 'food', { food: 55, dens: 1 }, { color: '#c9853f' });
+  mat('charcoal', 'деревне вугілля', 'fuel', { hard: 1, tough: 0.5, dens: 0.4, fuel: 1100, hp: 300, cond: 0.3, pot: 0.2 }, { color: '#1f1f22' });
+  mat('ceramic', 'кераміка', 'ceramic', { hard: 5, tough: 2.5, dens: 2, wp: 1, hp: 1400, sharp: 0.5 }, { color: '#c46a3c' });
+  mat('brick', 'обпалена цегла', 'ceramic', { hard: 5, tough: 3, dens: 1.9, wp: 0.8, hp: 1700, binder: 0 }, { color: '#a3462e' });
+  mat('quicklime', 'негашене вапно', 'mineral', { hard: 2, tough: 0.5, dens: 3.3, ion: 0.5, hp: 2500 }, { color: '#f4f2ea' });
+  mat('mortar', 'вапняне тісто', 'mineral', { hard: 4, tough: 2, dens: 1.8, wp: 0.7, hp: 900, binder: 1, plast: 6 }, { color: '#e3dfd0' });
+  mat('leather', 'вичинена шкіра', 'organic', { hard: 1.5, tough: 7, flex: 6, tensile: 7, dens: 0.9, wp: 0.8, hp: 150, air: 1 }, { color: '#7a4f2e' });
+  mat('copper', 'мідь', 'metal', { hard: 3, tough: 7, flex: 2, tensile: 6, dens: 8.9, wp: 1, mp: 1085, hp: 985, sharp: 0.8, cond: 1, pot: 0.34 }, { color: '#c8733c' });
+  mat('tin', 'олово', 'metal', { hard: 1.5, tough: 4, flex: 3, tensile: 2, dens: 7.3, wp: 1, mp: 232, hp: 200, sharp: 0.3, cond: 1, pot: -0.14 }, { color: '#c9ccd1' });
+  mat('lead', 'свинець', 'metal', { hard: 1, tough: 4, flex: 4, tensile: 1.5, dens: 11.3, wp: 1, mp: 327, hp: 300, sharp: 0.2, cond: 1, pot: -0.13 }, { color: '#6f7783' });
+  mat('iron', 'залізо (криця)', 'metal', { hard: 5, tough: 7, flex: 1, tensile: 7, dens: 7.9, wp: 0.7, mp: 1538, hp: 1400, sharp: 0.9, cond: 1, pot: -0.44 }, { color: '#5c6168' });
+  mat('glass', 'скло', 'ceramic', { hard: 5.5, tough: 1, dens: 2.5, wp: 1, hp: 1000, sharp: 0.9, trans: 1 }, { color: '#9fd3d6' });
+
+  V.MATERIALS = M;
+  V.BASE_RESOURCES = ['wood', 'fiber', 'resin', 'stone', 'flint', 'clay', 'sand', 'limestone', 'salt', 'water',
+    'copper_ore', 'tin_ore', 'lead_ore', 'iron_ore', 'coal', 'berries'];
+  V.FUELS = ['wood', 'charcoal', 'coal'];
+
+  /* ---------- Закони нагрівання та змішування ---------- */
+  // inputs — точний набір; reducer — будь-який відновник з переліку
+  V.LAWS = [
+    { id: 'cook', inputs: ['meat'], minT: 150, out: 'cooked', why: 'білки денатурують під дією тепла — їжа стає поживнішою' },
+    { id: 'cookfish', inputs: ['fish'], minT: 150, out: 'cooked', why: 'тепло робить рибу безпечнішою і поживнішою' },
+    { id: 'char', inputs: ['wood'], minT: 400, enclosed: true, out: 'charcoal', why: 'піроліз: без доступу повітря деревина не згоряє, а обвуглюється' },
+    { id: 'ceramic', inputs: ['clay'], minT: 800, out: 'ceramic', why: 'спікання: частинки глини зростаються і стають водонепроникними' },
+    { id: 'brick', inputs: ['clay', 'sand'], minT: 900, out: 'brick', why: 'пісок зменшує усадку, а спікання дає жаростійку цеглу' },
+    { id: 'lime', inputs: ['limestone'], minT: 900, out: 'quicklime', why: 'кальцинація: CaCO₃ → CaO + CO₂' },
+    { id: 'mortar', inputs: ['quicklime', 'water'], minT: 0, out: 'mortar', why: 'гасіння вапна: CaO + H₂O → Ca(OH)₂, яке твердне на повітрі' },
+    { id: 'leather', inputs: ['hide', 'salt'], minT: 0, out: 'leather', why: 'сіль витягує вологу і зупиняє гниття — шкіра стає щільною і довговічною' },
+    { id: 'pb', inputs: ['lead_ore'], reducer: true, minT: 800, out: 'lead', why: 'вуглець відбирає сірку й кисень у руди, лишається свинець' },
+    { id: 'sn', inputs: ['tin_ore'], reducer: true, minT: 900, out: 'tin', why: 'SnO₂ + 2C → Sn + 2CO' },
+    { id: 'cu', inputs: ['copper_ore'], reducer: true, minT: 1085, out: 'copper', why: 'вуглець відновлює мідь з малахіту, і вона плавиться' },
+    { id: 'fe', inputs: ['iron_ore'], reducer: true, minT: 1300, out: 'iron', why: 'Fe₂O₃ + 3CO → 2Fe + 3CO₂ у сиродутному горні' },
+    { id: 'glass', inputs: ['sand', 'quicklime'], minT: 1400, out: 'glass', why: 'вапно знижує температуру плавлення кварцу — утворюється скло' },
+  ];
+  const REDUCERS = ['charcoal', 'coal'];
+
+  const sameSet = (a, b) => a.length === b.length && a.every(x => b.includes(x));
+
+  /* Нагрівання: inputs — масив id; повертає результат і «спостереження» */
+  V.heat = function (inputs, temp, enclosed) {
+    const plain = inputs.filter(x => !REDUCERS.includes(x));
+    const hasReducer = inputs.some(x => REDUCERS.includes(x));
+    for (const law of V.LAWS) {
+      if (!sameSet(law.inputs, plain)) continue;
+      if (law.reducer && !hasReducer) {
+        if (temp >= law.minT) return { ok: false, hint: 'nothing', note: 'руда розжарилася, але нічого не віддала — може, їй чогось бракує в суміші?' };
+        continue;
+      }
+      if (!law.reducer && hasReducer && plain.length === inputs.length - 1 && law.id !== 'char') {
+        // зайве вугілля не заважає, просто згорає
+      }
+      if (law.enclosed && !enclosed) return { ok: false, hint: 'air', law: law.id, note: 'все просто згоріло — може, потрібен жар без повітря?' };
+      if (temp < law.minT) return { ok: false, hint: 'hotter', law: law.id, need: law.minT, note: `щось почало змінюватися, але жару замало (досягнуто ${Math.round(temp)}°C)` };
+      return { ok: true, out: law.out, law: law.id, why: law.why };
+    }
+    // фізична реакція без нового матеріалу
+    const m = M[plain[0]];
+    if (m && m.mp && temp >= m.mp) return { ok: false, hint: 'melt', note: `${m.name} розплавився і знову застиг — новим матеріалом не став` };
+    if (m && m.fuel) return { ok: false, hint: 'burn', note: `${m.name} просто згорів` };
+    return { ok: false, hint: 'nothing', note: 'нічого не сталося' };
+  };
+
+  /* ---------- Генератор сплавів і композитів ---------- */
+  // парні коефіцієнти: зміцнення (H), крихкість (B), зниження Tпл (D)
+  const PAIR = {
+    'copper|tin': { H: 4.2, B: 18, D: 260 },
+    'copper|lead': { H: 0.6, B: 6, D: 120 },
+    'lead|tin': { H: 0.9, B: 2, D: 420 },
+    'copper|iron': { H: 2.5, B: 10, D: 90 },
+    'iron|tin': { H: 1.5, B: 22, D: 300 },
+    'iron|lead': { H: 0.2, B: 12, D: 40 },
+  };
+  const pairKey = (a, b) => [a, b].sort().join('|');
+
+  /* Сплав: base — основний метал, add — добавка ('charcoal' = вуглець), f — частка добавки */
+  V.makeAlloy = function (base, add, f) {
+    const A = M[base];
+    if (add === 'charcoal') {
+      const c = f; // масова частка вуглецю
+      return {
+        kind: 'alloy', comp: [[base, 1 - c], ['carbon', c]],
+        hard: A.hard + Math.min(c, 0.021) * 160 + Math.max(0, c - 0.021) * 40,
+        tough: A.tough + Math.min(c, 0.008) * 60 - Math.max(0, c - 0.012) * 190,
+        flex: Math.max(0, A.flex - c * 20), tensile: A.tensile + Math.min(c, 0.012) * 120 - Math.max(0, c - 0.02) * 120,
+        dens: A.dens - c * 10, wp: A.wp, mp: A.mp - c * 9000, cond: 1, pot: A.pot + c * 2,
+        sharp: Math.min(1, A.sharp + c * 8),
+      };
+    }
+    const B = M[add];
+    const p = PAIR[pairKey(base, add)] || { H: 2, B: 10, D: 150 };
+    const fa = 1 - f, fb = f;
+    const minor = Math.min(fa, fb);
+    const harden = p.H * (minor / (minor + 0.07));
+    const brittle = p.B * Math.max(0, minor - 0.14);
+    const out = {
+      kind: 'alloy', comp: [[base, fa], [add, fb]],
+      hard: fa * A.hard + fb * B.hard + harden,
+      tough: fa * A.tough + fb * B.tough - brittle,
+      flex: Math.max(0, fa * A.flex + fb * B.flex - harden * 0.5),
+      tensile: fa * A.tensile + fb * B.tensile + harden * 0.6 - brittle * 0.8,
+      dens: fa * A.dens + fb * B.dens,
+      wp: Math.min(A.wp, B.wp) * 0.5 + (fa * A.wp + fb * B.wp) * 0.5,
+      mp: fa * A.mp + fb * B.mp - p.D * 4 * fa * fb,
+      cond: 1, pot: fa * A.pot + fb * B.pot,
+      sharp: Math.min(1, fa * A.sharp + fb * B.sharp + harden * 0.05),
+    };
+    return out;
+  };
+
+  V.MATRICES = ['clay', 'mortar', 'resin'];
+  V.FILLERS = ['fiber', 'sand', 'bone', 'ceramic', 'charcoal', 'hide', 'stone'];
+
+  /* Композит: основа (matrix) + наповнювач (filler) з часткою f */
+  V.makeComposite = function (matrix, filler, f) {
+    const A = M[matrix], B = M[filler];
+    const fa = 1 - f, fb = f;
+    const fibrous = clamp((B.tensile * B.flex) / 40, 0, 1.4); // волокна армують
+    const grit = clamp(B.hard / 6, 0, 1.2) * (1 - fibrous);   // тверді частинки
+    const bond = A.binder;
+    const overload = Math.max(0, fb - 0.45) * 8; // забагато наповнювача — розсипається
+    return {
+      kind: 'composite', comp: [[matrix, fa], [filler, fb]],
+      hard: fa * A.hard + fb * B.hard * bond * 0.8 + grit * fb * 2 - overload,
+      tough: fa * A.tough + fibrous * fb * 9 * bond + fb * B.tough * 0.2 - overload * 1.5,
+      flex: fa * A.flex + fibrous * fb * 3,
+      tensile: fa * A.tensile + fibrous * fb * 8 * bond - overload,
+      dens: fa * A.dens + fb * B.dens,
+      wp: clamp(fa * A.wp + fb * B.wp * 0.5 - overload * 0.1, 0, 1),
+      hp: Math.min(A.hp + fb * (B.hp - A.hp) * 0.6, Math.max(A.hp, B.hp)),
+      plast: A.plast * fa, binder: A.binder * fa,
+      cond: B.cond * fb, pot: B.pot, sharp: fb * B.sharp * 0.5,
+      ion: 0, air: fa * A.air,
+    };
+  };
+
+  /* ---------- Каталог реальних матеріалів ---------- */
+  // перевіряється за складом; якщо збіг — матеріал отримує справжню назву
+  V.REAL = [
+    { comp: ['copper', 'tin'], minor: 'tin', from: 0.02, to: 0.075, name: 'Низькоолов\'яна бронза', note: 'рання бронза: трохи твердіша за мідь, легко кується' },
+    { comp: ['copper', 'tin'], minor: 'tin', from: 0.075, to: 0.155, name: 'Бронза', note: 'класична олов\'яна бронза бронзової доби — тверда і в\'язка' },
+    { comp: ['copper', 'tin'], minor: 'tin', from: 0.155, to: 0.25, name: 'Дзвонова бронза', note: 'дуже тверда, дзвінка, але крихка — з неї відливали дзвони' },
+    { comp: ['copper', 'tin'], minor: 'tin', from: 0.25, to: 0.42, name: 'Спекулум', note: 'дзеркальна бронза: настільки тверда й блискуча, що з неї робили дзеркала й телескопи' },
+    { comp: ['tin', 'copper'], minor: 'copper', from: 0.01, to: 0.16, name: 'П\'ютер', note: 'олов\'яний сплав для посуду — м\'який і легкоплавкий' },
+    { comp: ['tin', 'lead'], minor: 'lead', from: 0.3, to: 0.46, name: 'Олов\'яно-свинцевий припій', note: 'плавиться нижче за обидва метали — ним з\'єднують інші метали' },
+    { comp: ['tin', 'lead'], minor: 'lead', from: 0.05, to: 0.3, name: 'Свинцевий п\'ютер', note: 'дешевий олов\'яний сплав зі свинцем' },
+    { comp: ['lead', 'tin'], minor: 'tin', from: 0.02, to: 0.5, name: 'Свинцево-олов\'яний сплав', note: 'важкий м\'який сплав для грузил і труб' },
+    { comp: ['iron', 'carbon'], minor: 'carbon', from: 0, to: 0.0025, name: 'Ковке залізо', note: 'майже чисте залізо: в\'язке, але м\'якувате' },
+    { comp: ['iron', 'carbon'], minor: 'carbon', from: 0.0025, to: 0.006, name: 'М\'яка сталь', note: 'низьковуглецева сталь — міцна й пластична' },
+    { comp: ['iron', 'carbon'], minor: 'carbon', from: 0.006, to: 0.021, name: 'Вуглецева сталь', note: 'тверда сталь, що добре тримає лезо' },
+    { comp: ['iron', 'carbon'], minor: 'carbon', from: 0.021, to: 0.05, name: 'Чавун', note: 'багато вуглецю: легкоплавкий, твердий, але крихкий' },
+    { comp: ['clay', 'fiber'], minor: 'fiber', from: 0.08, to: 0.4, name: 'Саман', note: 'глина, армована соломою, — будівельний матеріал тисячоліть' },
+    { comp: ['clay', 'sand'], minor: 'sand', from: 0.15, to: 0.5, name: 'Отощена глина', note: 'глина з піском менше тріскається при сушінні' },
+    { comp: ['mortar', 'sand'], minor: 'sand', from: 0.2, to: 0.65, name: 'Вапняний розчин', note: 'вапно з піском — класичний будівельний розчин' },
+    { comp: ['mortar', 'ceramic'], minor: 'ceramic', from: 0.15, to: 0.55, name: 'Цем\'янка', note: 'вапно з товченою керамікою (opus signinum) — водостійкий римський розчин' },
+    { comp: ['resin', 'charcoal'], minor: 'charcoal', from: 0.08, to: 0.45, name: 'Смоляний клей', note: 'смола з вугіллям — давній клей для кріплення наконечників' },
+  ];
+
+  V.matchReal = function (comp) {
+    const ids = comp.map(c => c[0]);
+    for (const r of V.REAL) {
+      if (!sameSet(r.comp, ids)) continue;
+      if (ids[0] !== r.comp[0]) continue; // основа має збігатися
+      const fr = comp.find(c => c[0] === r.minor)[1];
+      if (fr >= r.from && fr < r.to) return r;
+    }
+    return null;
+  };
+
+  const SYL = ['ва', 'ре', 'лі', 'то', 'мі', 'ар', 'ко', 'ні', 'ус', 'да', 'ле', 'ри', 'са', 'ту', 'ен', 'ор', 'ві', 'ла', 'мо', 'зе'];
+  V.inventWord = function (rnd) {
+    let w = '';
+    const n = 2 + (rnd() < 0.5 ? 1 : 0);
+    for (let i = 0; i < n; i++) w += SYL[Math.floor(rnd() * SYL.length)];
+    return w.charAt(0).toUpperCase() + w.slice(1);
+  };
+
+  const COMPNAME = { carbon: 'вуглецю' };
+  const compName = id => COMPNAME[id] || (M[id] ? M[id].name : id);
+
+  V.describeComp = function (comp) {
+    const fine = comp.some(([, f]) => f < 0.01 || f > 0.99);
+    return comp.map(([id, f]) => `${(f * 100).toFixed(fine ? 1 : 0)}% ${compName(id)}`).join(' + ');
+  };
+
+  /* Найближчий відомий матеріал за властивостями */
+  V.nearest = function (p, pool) {
+    const keys = ['hard', 'tough', 'flex', 'tensile', 'dens'];
+    let best = null, bd = 1e9;
+    for (const m of pool) {
+      if (!m || m.kind === 'food' || m.kind === 'liquid' || m.kind === 'ore') continue;
+      let d = 0;
+      for (const k of keys) d += Math.pow((p[k] || 0) - (m[k] || 0), 2);
+      if (d < bd) { bd = d; best = m; }
+    }
+    return best;
+  };
+
+  /* ---------- Ідеї пристроїв ----------
+     Кожна ідея — фізичний принцип із «гніздами».
+     Гніздо перевіряє властивості матеріалу і дає оцінку 0..1.5.
+     Пристрій працює, якщо всі гнізда ≥ 0.6. */
+  const SLOT = {
+    edge: { name: 'лезо', test: p => clamp((p.hard - 3) / 4) * clamp(p.tough / 3, 0, 1) * clamp(p.sharp * 1.1, 0, 1) },
+    point: { name: 'вістря', test: p => clamp((p.hard - 2) / 3.5) * clamp(p.sharp * 1.2, 0, 1) * clamp(p.tough / 1.5, 0, 1) },
+    shaft: { name: 'держак', test: p => clamp(p.tough / 5) * clamp((3 - p.dens) / 2, 0, 1) * clamp(p.hard / 2, 0, 1) * clamp((7 - p.flex) / 3, 0, 1) },
+    binding: { name: 'обмотка', test: p => clamp(p.tensile / 5) * clamp(p.flex / 6) },
+    vessel: { name: 'посудина', test: p => clamp(p.wp, 0, 1) * clamp(p.hp / 400) * clamp(p.hard / 3, 0, 1) * clamp(p.tough / 1.5, 0, 1) },
+    wall: { name: 'стіна', test: p => clamp(p.hp / 1000) * clamp(p.hard / 3, 0, 1) * clamp(p.tough / 1.5, 0, 1) },
+    membrane: { name: 'мембрана', test: p => clamp(p.air, 0, 1) * clamp(p.flex / 5) * clamp(p.tough / 4, 0, 1) },
+    frame: { name: 'каркас', test: p => clamp(p.tough / 4) * clamp(p.hard / 2, 0, 1) * clamp((4 - p.dens) / 2, 0, 1) },
+    float: { name: 'поплавок', test: p => clamp((1.15 - p.dens) / 0.5) * clamp(p.tough / 3, 0, 1) * clamp(p.hard / 2, 0, 1) },
+    disc: { name: 'диск', test: p => clamp(p.tough / 5) * clamp(p.hard / 3, 0, 1) },
+    binder: { name: 'в\'яжуче', test: p => clamp(p.binder * 1.1) * clamp(p.hard / 2, 0, 1) },
+    lens: { name: 'лінза', test: p => clamp(p.trans, 0, 1) * clamp(p.hard / 5) },
+    writable: { name: 'табличка', test: p => clamp(p.plast / 6) * clamp(p.dens / 1.5, 0, 1) },
+    electrode: { name: 'електрод', test: p => p.cond >= 0.9 ? 1 : p.cond * 0.5 },
+    electrolyte: { name: 'електроліт', test: p => clamp(p.ion / 0.8) },
+  };
+  V.SLOT = SLOT;
+
+  V.IDEAS = {
+    knife: { name: 'ріжучий інструмент', verb: 'різати', slots: ['edge', 'shaft', 'binding'], effect: 'швидше збирає і краще оброблює здобич' },
+    spear: { name: 'спис', verb: 'полювати', slots: ['point', 'shaft', 'binding'], effect: 'полювання вдається частіше' },
+    vessel: { name: 'посудина', verb: 'варити', slots: ['vessel'], effect: 'варене дає більше поживності, можна носити воду' },
+    kiln: { name: 'піч', verb: 'тримати жар', slots: ['wall'], structure: true, effect: 'жар без повітря і +150°C' },
+    bellows: { name: 'міхи', verb: 'дмухати', slots: ['membrane', 'frame'], structure: true, effect: '+300°C у печі' },
+    net: { name: 'сітка', verb: 'ловити рибу', slots: ['binding'], effect: 'рибалка' },
+    raft: { name: 'пліт', verb: 'плавати', slots: ['float', 'binding'], effect: 'рибалка вдвічі кориснішa, далекі береги' },
+    cart: { name: 'візок', verb: 'возити', slots: ['disc', 'shaft'], effect: 'носить удвічі більше' },
+    pen: { name: 'загорода', verb: 'приручати', slots: ['shaft', 'binding'], structure: true, effect: 'приручені тварини дають їжу' },
+    house: { name: 'дім', verb: 'жити в теплі', slots: ['wall', 'binder'], structure: true, effect: 'кращий сон і здоров\'я' },
+    lens: { name: 'лінза', verb: 'роздивлятися', slots: ['lens'], effect: 'експерименти на 40% швидші' },
+    tablet: { name: 'письмові таблички', verb: 'записувати', slots: ['writable', 'point'], structure: true, effect: 'знання з табличок вночі переходять до всіх у таборі' },
+    cell: { name: 'гальванічний елемент', verb: 'добувати струм', slots: ['electrode', 'electrode', 'electrolyte', 'vessel'], structure: true, effect: 'електрика: світло в таборі вночі' },
+  };
+
+  /* Перевірка пристрою: parts — масив об'єктів-матеріалів у порядку гнізд */
+  V.evaluate = function (ideaId, parts) {
+    const idea = V.IDEAS[ideaId];
+    const scores = idea.slots.map((s, i) => SLOT[s].test(parts[i]));
+    let extra = null;
+    if (ideaId === 'cell') {
+      const a = parts[0], b = parts[1];
+      const volts = Math.abs((a.pot || 0) - (b.pot || 0));
+      extra = { volts };
+      const vs = a.id === b.id ? 0 : clamp(volts / 0.5);
+      scores[0] = Math.min(scores[0], vs || 0.01);
+      scores[1] = Math.min(scores[1], vs || 0.01);
+    }
+    const min = Math.min(...scores);
+    const q = scores.reduce((s, x) => s + x, 0) / scores.length;
+    let weak = idea.slots[scores.indexOf(min)];
+    return { works: min >= 0.6, partial: min >= 0.3, quality: +q.toFixed(2), scores, weakSlot: weak, extra };
+  };
+
+  /* Короткий опис властивостей для людей */
+  V.propLine = function (p) {
+    const parts = [];
+    parts.push(`твердість ${(+p.hard).toFixed(1)}`);
+    parts.push(`міцність ${(+p.tough).toFixed(1)}`);
+    if (p.flex > 2) parts.push(`гнучкість ${(+p.flex).toFixed(1)}`);
+    parts.push(`густина ${(+p.dens).toFixed(1)} г/см³`);
+    if (p.mp) parts.push(`плавиться ~${Math.round(p.mp)}°C`);
+    else if (p.hp) parts.push(`витримує ~${Math.round(p.hp)}°C`);
+    if (p.cond >= 0.9) parts.push(`провідник, ${p.pot >= 0 ? '+' : ''}${(+p.pot).toFixed(2)} В`);
+    if (p.wp >= 0.8) parts.push('водонепроникний');
+    return parts.join(', ');
+  };
+})(window.V = window.V || {});
+
+</script>
+<script>
+/* ============================================================
+   Світ: генерація карти, ресурси, тварини
+   ============================================================ */
+(function (V) {
+  'use strict';
+
+  V.rng = function (seed) {
+    let a = seed >>> 0;
+    return function () {
+      a |= 0; a = (a + 0x6D2B79F5) | 0;
+      let t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  };
+
+  const T = V.T = { DEEP: 0, SHALLOW: 1, SAND: 2, GRASS: 3, FOREST: 4, HILLS: 5, MOUNT: 6 };
+  V.T_NAMES = ['глибока вода', 'мілина', 'пісок', 'лука', 'ліс', 'пагорби', 'гори'];
+
+  function valueNoise(rnd, w, h, cell) {
+    const gw = Math.ceil(w / cell) + 2, gh = Math.ceil(h / cell) + 2;
+    const g = [];
+    for (let i = 0; i < gw * gh; i++) g.push(rnd());
+    const sm = t => t * t * (3 - 2 * t);
+    return (x, y) => {
+      const gx = x / cell, gy = y / cell;
+      const x0 = Math.floor(gx), y0 = Math.floor(gy);
+      const fx = sm(gx - x0), fy = sm(gy - y0);
+      const v = (i, j) => g[(j) * gw + (i)];
+      const a = v(x0, y0) * (1 - fx) + v(x0 + 1, y0) * fx;
+      const b = v(x0, y0 + 1) * (1 - fx) + v(x0 + 1, y0 + 1) * fx;
+      return a * (1 - fy) + b * fy;
+    };
+  }
+
+  V.makeWorld = function (seed) {
+    const rnd = V.rng(seed);
+    const W = 72, H = 48;
+    const n1 = valueNoise(rnd, W, H, 14), n2 = valueNoise(rnd, W, H, 6), n3 = valueNoise(rnd, W, H, 3);
+    const m1 = valueNoise(rnd, W, H, 10), m2 = valueNoise(rnd, W, H, 4);
+    const tiles = [];
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      const dx = (x - W / 2) / (W / 2), dy = (y - H / 2) / (H / 2);
+      const fall = Math.pow(Math.min(1, Math.sqrt(dx * dx * 0.9 + dy * dy)), 2.4);
+      const e = n1(x, y) * 0.55 + n2(x, y) * 0.3 + n3(x, y) * 0.15 - fall * 0.55 + 0.12;
+      const m = m1(x, y) * 0.7 + m2(x, y) * 0.3;
+      let t;
+      if (e < 0.22) t = T.DEEP;
+      else if (e < 0.3) t = T.SHALLOW;
+      else if (e < 0.34) t = T.SAND;
+      else if (e < 0.56) t = m > 0.5 ? T.FOREST : T.GRASS;
+      else if (e < 0.68) t = T.HILLS;
+      else t = T.MOUNT;
+      tiles.push({ x, y, t, e, r: null, a: 0, max: 0, fish: 0, shade: rnd() });
+    }
+    const at = (x, y) => (x < 0 || y < 0 || x >= W || y >= H) ? null : tiles[y * W + x];
+    const near = (x, y, pred, r = 1) => {
+      for (let j = -r; j <= r; j++) for (let i = -r; i <= r; i++) {
+        const t = at(x + i, y + j); if (t && pred(t)) return true;
+      }
+      return false;
+    };
+    const isWater = t => t.t <= T.SHALLOW;
+
+    // ресурси
+    const put = (t, r, amt) => { t.r = r; t.a = amt; t.max = amt; };
+    for (const t of tiles) {
+      const p = rnd();
+      if (isWater(t)) { t.fish = t.t === T.SHALLOW ? 3 + rnd() * 3 : 2 + rnd() * 4; continue; }
+      if (t.t === T.FOREST) { if (p < 0.5) put(t, 'wood', 10); else if (p < 0.6) put(t, 'resin', 4); else if (p < 0.72) put(t, 'berries', 6); }
+      else if (t.t === T.GRASS) {
+        if (near(t.x, t.y, isWater, 1) && p < 0.35) put(t, 'clay', 12);
+        else if (p < 0.16) put(t, 'fiber', 8); else if (p < 0.26) put(t, 'berries', 6);
+      } else if (t.t === T.SAND) {
+        if (near(t.x, t.y, u => u.t === T.DEEP, 2) && p < 0.18) put(t, 'salt', 6);
+        else if (p < 0.5) put(t, 'sand', 15);
+        else if (near(t.x, t.y, isWater, 1) && p < 0.6) put(t, 'clay', 10);
+      } else if (t.t === T.HILLS) {
+        if (p < 0.3) put(t, 'stone', 20); else if (p < 0.42) put(t, 'flint', 8); else if (p < 0.55) put(t, 'limestone', 12);
+      } else if (t.t === T.MOUNT) {
+        if (p < 0.45) put(t, 'stone', 25);
+      }
+    }
+    // рудні жили — кластери в пагорбах і горах
+    const rocky = tiles.filter(t => t.t >= T.HILLS);
+    const veins = [['copper_ore', 3, 10], ['tin_ore', 2, 7], ['iron_ore', 3, 12], ['coal', 3, 14], ['lead_ore', 2, 8], ['flint', 1, 8], ['limestone', 1, 10]];
+    for (const [r, n, amt] of veins) {
+      for (let k = 0; k < n && rocky.length; k++) {
+        const c = rocky[Math.floor(rnd() * rocky.length)];
+        const size = 2 + Math.floor(rnd() * 3);
+        for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) {
+          const t = at(c.x + i, c.y + j);
+          if (t && t.t >= T.HILLS && rnd() < 0.3 + size * 0.12) put(t, r, amt);
+        }
+      }
+    }
+    // гарантуємо ключові ресурси
+    for (const r of ['copper_ore', 'tin_ore', 'iron_ore', 'coal', 'lead_ore', 'salt', 'sand', 'clay', 'flint', 'limestone', 'resin', 'fiber']) {
+      if (!tiles.some(t => t.r === r)) {
+        const pool = r === 'salt' || r === 'sand' ? tiles.filter(t => t.t === T.SAND) : r === 'clay' || r === 'fiber' ? tiles.filter(t => t.t === T.GRASS) : r === 'resin' ? tiles.filter(t => t.t === T.FOREST) : rocky;
+        const pick = pool.length ? pool[Math.floor(rnd() * pool.length)] : tiles.find(t => !isWater(t));
+        if (pick) put(pick, r, 10);
+      }
+    }
+
+    // табір — лука біля води ближче до центру
+    let camp = null, best = -1e9;
+    for (const t of tiles) {
+      if (t.t !== T.GRASS && t.t !== T.SAND) continue;
+      const d = Math.hypot(t.x - W / 2, t.y - H / 2);
+      let s = -d;
+      if (near(t.x, t.y, isWater, 4)) s += 10;
+      if (near(t.x, t.y, u => u.t === T.FOREST, 4)) s += 8;
+      if (near(t.x, t.y, u => u.t === T.HILLS, 9)) s += 6;
+      if (s > best) { best = s; camp = t; }
+    }
+    for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) { const t = at(camp.x + i, camp.y + j); if (t && !isWater(t)) { t.r = null; t.a = 0; if (t.t === T.FOREST) t.t = T.GRASS; } }
+
+    return { W, H, tiles, at, near, isWater, camp: { x: camp.x + 0.5, y: camp.y + 0.5 }, rnd };
+  };
+
+  V.isLand = (world, x, y) => { const t = world.at(Math.floor(x), Math.floor(y)); return !!t && t.t >= V.T.SAND && t.t !== V.T.MOUNT; };
+  V.walkable = (world, x, y) => { const t = world.at(Math.floor(x), Math.floor(y)); return !!t && t.t >= V.T.SAND; };
+
+  /* ---------- Тварини ---------- */
+  V.ANIMALS = {
+    rabbit: { name: 'кріль', speed: 0.07, cap: 60, breed: 0.0009, prey: true, meat: 2, hide: 1, bone: 0 },
+    deer: { name: 'олень', speed: 0.085, cap: 22, breed: 0.0004, prey: true, meat: 5, hide: 2, bone: 2 },
+    wolf: { name: 'вовк', speed: 0.1, cap: 8, breed: 0.0003, prey: false },
+  };
+
+  V.spawnAnimals = function (sim) {
+    const { world, rnd } = sim;
+    const land = world.tiles.filter(t => t.t === V.T.GRASS || t.t === V.T.FOREST);
+    const add = (type, n) => {
+      for (let i = 0; i < n; i++) {
+        const t = land[Math.floor(rnd() * land.length)];
+        if (Math.hypot(t.x - world.camp.x, t.y - world.camp.y) < 6 && type === 'wolf') { i--; continue; }
+        sim.animals.push({ id: sim.nextId++, type, x: t.x + 0.5, y: t.y + 0.5, dir: rnd() * 6.28, hunger: rnd() * 30, alive: true, flee: 0 });
+      }
+    };
+    add('rabbit', 26); add('deer', 10); add('wolf', 4);
+  };
+
+  V.stepAnimals = function (sim) {
+    const { world, rnd, animals } = sim;
+    const counts = { rabbit: 0, deer: 0, wolf: 0 };
+    for (const a of animals) if (a.alive) counts[a.type]++;
+    const born = [];
+    for (const a of animals) {
+      if (!a.alive) continue;
+      const spec = V.ANIMALS[a.type];
+      let speed = spec.speed * 0.45;
+      if (a.type === 'wolf') {
+        a.hunger += 0.03;
+        if (a.hunger > 45) {
+          let prey = null, bd = 12;
+          for (const b of animals) if (b.alive && b.type !== 'wolf') { const d = Math.hypot(b.x - a.x, b.y - a.y); if (d < bd) { bd = d; prey = b; } }
+          if (prey) {
+            a.dir = Math.atan2(prey.y - a.y, prey.x - a.x); speed = spec.speed;
+            if (bd < 0.6 && rnd() < 0.08) { prey.alive = false; a.hunger = Math.max(0, a.hunger - (prey.type === 'deer' ? 90 : 45)); sim.stats.wolfKills++; }
+          }
+        }
+        // вовки тримаються подалі від табору вдень
+        const dc = Math.hypot(a.x - world.camp.x, a.y - world.camp.y);
+        if (dc < 7 && !sim.isNight()) { a.dir = Math.atan2(a.y - world.camp.y, a.x - world.camp.x); speed = spec.speed; }
+        if (a.hunger > 160 && rnd() < 0.002) { a.alive = false; continue; }
+        if (a.hunger < 25 && counts.wolf < spec.cap && rnd() < spec.breed) born.push({ type: 'wolf', x: a.x, y: a.y });
+      } else {
+        // травоїдні: тікають від вовків і від людей, що полюють
+        let threat = null, bd = a.type === 'deer' ? 5 : 3.5;
+        for (const b of animals) if (b.alive && b.type === 'wolf') { const d = Math.hypot(b.x - a.x, b.y - a.y); if (d < bd) { bd = d; threat = b; } }
+        for (const n of sim.npcs) if (n.task && n.task.type === 'hunt' && n.task.target === a.id) { const d = Math.hypot(n.x - a.x, n.y - a.y); if (d < bd) { bd = d; threat = n; } }
+        if (threat) { a.dir = Math.atan2(a.y - threat.y, a.x - threat.x) + (rnd() - 0.5) * 0.6; speed = spec.speed; }
+        else if (rnd() < 0.04) a.dir += (rnd() - 0.5) * 2;
+        if (counts[a.type] < spec.cap && rnd() < spec.breed * (1 - counts[a.type] / spec.cap) * 2) born.push({ type: a.type, x: a.x, y: a.y });
+      }
+      if (rnd() < 0.02) a.dir += (rnd() - 0.5);
+      const nx = a.x + Math.cos(a.dir) * speed, ny = a.y + Math.sin(a.dir) * speed;
+      if (V.isLand(world, nx, ny)) { a.x = nx; a.y = ny; } else a.dir += Math.PI * (0.5 + rnd());
+    }
+    for (const b of born) { sim.animals.push({ id: sim.nextId++, type: b.type, x: b.x, y: b.y, dir: rnd() * 6.28, hunger: 0, alive: true }); counts[b.type]++; }
+    if (sim.tick % 200 === 0) sim.animals = sim.animals.filter(a => a.alive);
+    // відновлення риби та рослин
+    if (sim.tick % 50 === 0) {
+      for (const t of world.tiles) {
+        if (t.fish !== undefined && world.isWater(t) && t.fish < 6) t.fish += 0.05;
+        if (t.r && t.a < t.max && ['wood', 'berries', 'fiber', 'resin'].includes(t.r)) t.a = Math.min(t.max, t.a + 0.25);
+      }
+    }
+  };
+})(window.V = window.V || {});
+
+</script>
+<script>
+/* ============================================================
+   Симуляція: поселенці, знання, винаходи, заохочення
+   ============================================================ */
+(function (V) {
+  'use strict';
+  const M = V.MATERIALS;
+
+  const NAMES = ['Олеся', 'Тарас', 'Мирослава', 'Богдан', 'Ярина', 'Остап', 'Злата', 'Данило', 'Леся', 'Назар', 'Устина', 'Орест',
+    'Марта', 'Ілько', 'Соломія', 'Захар', 'Олекса', 'Дарина', 'Роман', 'Христя', 'Іванна', 'Святослав', 'Галя', 'Петро', 'Віра', 'Гнат'];
+  const COLORS = ['#e8a33d', '#4fb3a9', '#d9668a', '#7d8de6', '#9ccf5a', '#e6735a', '#b07de0', '#5fa8e8', '#d6c14a', '#e88fd0', '#62c98a', '#c9925e'];
+  const FOODS = ['cooked', 'meat', 'fish', 'berries'];
+  const FEMALE = new Set(['Олеся', 'Мирослава', 'Ярина', 'Злата', 'Леся', 'Устина', 'Марта', 'Соломія', 'Дарина', 'Христя', 'Іванна', 'Галя', 'Віра']);
+  const g = (n, m, f) => FEMALE.has(n.name) ? f : m;
+  V.g = g;
+
+  // Заохочення («натхнення»)
+  const R = V.REWARD = {
+    learn: 2, teach: 4, taught: 2, idea: 2, material: 15, useful: 20, invent: 40, partial: 5, fail: 1,
+    improve: 10, impact: 0.3, help: 3, build: 5, hunt: 1.5, gather: 0.5, explore: 1,
+  };
+  const ACTS = ['gather', 'hunt', 'fish', 'experiment', 'teach', 'build', 'explore'];
+  const ACT_NAMES = { gather: 'збирає', hunt: 'полює', fish: 'рибалить', experiment: 'експериментує', teach: 'навчає', build: 'будує', explore: 'досліджує', eat: 'їсть', sleep: 'спить', listen: 'слухає', play: 'грається', think: 'обмірковує' };
+  V.ACT_NAMES = ACT_NAMES;
+
+  function Sim(seed) {
+    this.seed = seed;
+    this.world = V.makeWorld(seed);
+    this.rnd = this.world.rnd;
+    this.tick = 0;
+    this.DAY = 1200;
+    this.nextId = 1;
+    this.npcs = [];
+    this.animals = [];
+    this.dead = [];
+    this.store = { berries: 12, wood: 6, fiber: 3, stone: 3 };
+    this.devices = {};      // ідея → найкраща робоча конструкція
+    this.structures = {};   // збудовані споруди
+    this.worldKnown = new Set(['wood', 'fiber', 'stone', 'berries', 'water']);
+    this.chronicle = [];
+    this.discoveries = [];
+    this.genCount = 0;
+    this.attempts = 0;
+    this.triedPairs = new Set();
+    this.ideasSeen = new Set();
+    this.pen = 0;
+    this.houses = 0;
+    this.era = 'Кам\'яна доба';
+    this.stats = { wolfKills: 0, hunts: 0, fish: 0, taught: 0, experiments: 0, births: 0 };
+    V.spawnAnimals(this);
+    for (let i = 0; i < 8; i++) this.addNPC(null);
+    this.log('Вісім поселенців розклали багаття в долині. Вони вміють розводити вогонь — і більше нічого.', 'era');
+  }
+  V.Sim = Sim;
+  const P = Sim.prototype;
+
+  P.day = function () { return Math.floor(this.tick / this.DAY) + 1; };
+  P.phase = function () { return (this.tick % this.DAY) / this.DAY; };
+  P.isNight = function () { const p = this.phase(); return p > 0.78 || p < 0.04; };
+  P.log = function (text, kind = 'life', npc = null) {
+    this.chronicle.push({ day: this.day(), t: this.tick, text, kind, npc: npc ? npc.id : null });
+    if (this.chronicle.length > 400) this.chronicle.shift();
+    if (npc) { npc.history.unshift(`День ${this.day()}: ${text}`); if (npc.history.length > 12) npc.history.pop(); }
+  };
+
+  /* ---------- Поселенці ---------- */
+  P.addNPC = function (parents) {
+    const rnd = this.rnd;
+    const used = new Set(this.npcs.map(n => n.name).concat(this.dead.map(n => n.name)));
+    let name = NAMES.find(n => !used.has(n)) || ('Мешканець ' + this.nextId);
+    if (parents) { const free = NAMES.filter(n => !used.has(n)); if (free.length) name = free[Math.floor(rnd() * free.length)]; }
+    const c = this.world.camp;
+    const n = {
+      id: this.nextId++, name, color: COLORS[this.npcs.length % COLORS.length],
+      x: c.x + (rnd() - 0.5) * 3, y: c.y + (rnd() - 0.5) * 3,
+      curiosity: 0.3 + rnd() * 0.7, sociability: 0.3 + rnd() * 0.7, diligence: 0.3 + rnd() * 0.7,
+      hunger: 20 + rnd() * 20, energy: 70 + rnd() * 30, social: rnd() * 30, health: 100,
+      skill: { gather: 1, hunt: 1, craft: 1, teach: 1 },
+      know: new Set(), insp: 0, val: {}, task: null, carry: null, thought: 'Оглядаюся довкола.',
+      history: [], failures: new Set(), hints: {}, friends: {}, inventions: [], taughtCount: 0,
+      hunts: 0, gathers: 0, heatTries: 0, ageTicks: parents ? 0 : this.DAY * 3, parents: parents ? parents.map(p => p.id) : null,
+      llmNote: '',
+    };
+    for (const a of ACTS) n.val[a] = 3;
+    const base = ['m:wood', 'm:fiber', 'm:stone', 'm:berries', 'm:water'];
+    if (!parents) {
+      for (const k of base) n.know.add(k);
+      n.know.add('i:knife'); n.know.add('i:spear');
+      const extra = ['m:flint', 'm:clay', 'm:sand'];
+      n.know.add(extra[Math.floor(rnd() * extra.length)]);
+    } else {
+      n.know.add('m:berries'); n.know.add('m:water'); n.know.add('m:wood');
+      n.color = parents[0].color;
+    }
+    for (const k of n.know) if (k.startsWith('m:')) this.worldKnown.add(k.slice(2));
+    this.npcs.push(n);
+    return n;
+  };
+
+  const isAdult = (sim, n) => n.ageTicks >= sim.DAY * 2;
+  P.knows = (n, k) => n.know.has(k);
+  P.learn = function (n, key, how) {
+    if (n.know.has(key)) return false;
+    n.know.add(key);
+    if (key.startsWith('m:')) this.worldKnown.add(key.slice(2));
+    this.reward(n, key.startsWith('i:') ? R.idea : R.learn, how || 'нове знання');
+    return true;
+  };
+  P.reward = function (n, amt, why) {
+    n.insp += amt;
+    if (n.task) n.task.r = (n.task.r || 0) + amt;
+    n.lastReward = { amt, why, t: this.tick };
+  };
+  P.stock = function (id) { return this.store[id] || 0; };
+  P.give = function (id, k = 1) { this.store[id] = (this.store[id] || 0) + k; };
+  P.take = function (id, k = 1) { if (this.stock(id) < k) return false; this.store[id] -= k; return true; };
+  P.foodStock = function () { return FOODS.reduce((s, f) => s + this.stock(f), 0); };
+  P.hasDev = function (n, idea) { return !!this.devices[idea] && n.know.has('d:' + idea); };
+  P.devQ = function (idea) { return this.devices[idea] ? this.devices[idea].quality : 0; };
+  P.useDev = function (n, idea) {
+    const d = this.devices[idea];
+    if (d && d.inventor !== n.id) { const inv = this.npcs.find(x => x.id === d.inventor); if (inv) this.reward(inv, R.impact, 'інші користуються моїм винаходом'); }
+  };
+
+  /* Температура, яку дає табір */
+  P.temp = function (fuel) {
+    const base = M[fuel] ? M[fuel].fuel : 0;
+    const k = this.structures.kiln;
+    let t = base, cap = Infinity, enclosed = false;
+    if (k) { t += 150; enclosed = true; cap = k.hp; if (this.structures.bellows) t += 300; }
+    return { t: Math.min(t, cap), raw: t, cap, enclosed };
+  };
+  P.bestFuel = function (n) {
+    let best = null, bt = 0;
+    for (const f of V.FUELS) if (n.know.has('m:' + f) && this.stock(f) > 0 && M[f].fuel > bt) { best = f; bt = M[f].fuel; }
+    return best;
+  };
+
+  /* ---------- Рух ---------- */
+  P.moveTo = function (n, tx, ty, speedMul = 1) {
+    const dx = tx - n.x, dy = ty - n.y, d = Math.hypot(dx, dy);
+    if (d < 0.35) return true;
+    let sp = 0.075 * speedMul * (n.ageTicks < this.DAY * 2 ? 0.7 : 1);
+    if (this.hasDev(n, 'cart') && n.carry) sp *= 1.15;
+    const base = Math.atan2(dy, dx);
+    for (const off of [0, 0.6, -0.6, 1.2, -1.2, 1.9, -1.9]) {
+      const a = base + off, nx = n.x + Math.cos(a) * Math.min(sp, d), ny = n.y + Math.sin(a) * Math.min(sp, d);
+      if (V.walkable(this.world, nx, ny) || (this.hasDev(n, 'raft') && this.world.at(Math.floor(nx), Math.floor(ny)))) { n.x = nx; n.y = ny; return false; }
+    }
+    n.x += (this.rnd() - 0.5) * 0.2; n.y += (this.rnd() - 0.5) * 0.2;
+    if (!V.walkable(this.world, n.x, n.y)) { n.x = this.world.camp.x; n.y = this.world.camp.y; }
+    return false;
+  };
+  P.campSpot = function (n) { const a = (n.id * 2.4) % 6.28; const r = 1.2 + (n.id % 3) * 0.5; return { x: this.world.camp.x + Math.cos(a) * r, y: this.world.camp.y + Math.sin(a) * r }; };
+
+  /* Знайти найближчу клітинку з ресурсом */
+  P.findRes = function (n, res) {
+    let best = null, bd = 1e9;
+    for (const t of this.world.tiles) {
+      if (t.r !== res || t.a < 1) continue;
+      const d = Math.hypot(t.x + 0.5 - n.x, t.y + 0.5 - n.y);
+      if (d < bd) { bd = d; best = t; }
+    }
+    return best;
+  };
+  P.waterEdge = function (n) {
+    let best = null, bd = 1e9;
+    const w = this.world;
+    for (const t of w.tiles) {
+      if (w.isWater(t) || t.t === V.T.MOUNT) continue;
+      let fish = 0;
+      for (const [i, j] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const u = w.at(t.x + i, t.y + j); if (u && w.isWater(u)) fish = Math.max(fish, u.fish); }
+      if (fish < 1.5) continue;
+      const d = Math.hypot(t.x + 0.5 - n.x, t.y + 0.5 - n.y) - fish;
+      if (d < bd) { bd = d; best = t; }
+    }
+    return best;
+  };
+
+  /* Огляд околиць — так NPC дізнаються нові матеріали і тварин */
+  P.look = function (n, r = 2) {
+    const w = this.world, cx = Math.floor(n.x), cy = Math.floor(n.y);
+    for (let j = -r; j <= r; j++) for (let i = -r; i <= r; i++) {
+      const t = w.at(cx + i, cy + j); if (!t) continue;
+      if (t.r && !n.know.has('m:' + t.r)) {
+        const first = !this.worldKnown.has(t.r);
+        this.learn(n, 'm:' + t.r, 'знайшов новий матеріал');
+        if (first) this.log(`${n.name} вперше ${g(n, 'знаходить', 'знаходить')} у долині: ${M[t.r].name}.`, 'find', n);
+      }
+      if (w.isWater(t) && t.fish > 2 && !n.know.has('m:fish')) this.learn(n, 'm:fish', 'побачив рибу');
+    }
+  };
+
+  /* ---------- Ідеї: виникають із проблем ---------- */
+  P.checkIdeas = function (n) {
+    const k = x => n.know.has(x);
+    const unlock = (id, why) => {
+      if (!k('i:' + id) && this.learn(n, 'i:' + id, 'нова ідея')) {
+        n.thought = why.charAt(0).toUpperCase() + why.slice(1);
+        if (!this.ideasSeen.has(id)) { this.ideasSeen.add(id); this.log(`${n.name} замислюється: ${why}`, 'idea', n); }
+      }
+    };
+    if (k('m:clay') && (k('l:cook') || this.day() >= 2)) unlock('vessel', 'якби мати щось, що тримає воду над вогнем…');
+    if (n.hints.air || n.hints.hotter) unlock('kiln', 'треба загородити вогонь, щоб жар не розходився.');
+    if (n.hints.hotter && this.structures.kiln) unlock('bellows', 'а якщо дмухати в піч повітрям?');
+    if (k('m:fish') && k('m:fiber')) unlock('net', 'риба близько — от би її чимось вичерпати.');
+    if (k('d:net') || (k('m:fish') && k('m:wood') && this.day() >= 4)) unlock('raft', 'деревина тримається на воді… а людина на ній?');
+    if (n.gathers >= 12) unlock('cart', 'носити все в руках — надто повільно.');
+    if (n.hunts >= 3 && k('m:fiber')) unlock('pen', 'а що як тримати тварин поруч, замість ганятися за ними?');
+    if ((k('m:brick') || k('m:mortar') || k('m:stone')) && this.day() >= 3 && this.structures.kiln) unlock('house', 'стіни, що тримають жар у печі, втримають і тепло вночі.');
+    if (k('m:glass')) unlock('lens', 'крізь скло все здається більшим!');
+    if (n.taughtCount >= 5 && k('m:clay')) unlock('tablet', 'якщо видряпати знання на глині, їх не забудуть.');
+    const metals = [...n.know].filter(x => x.startsWith('m:') && M[x.slice(2)] && M[x.slice(2)].cond >= 0.9).length;
+    if (metals >= 2 && (k('m:salt') || k('m:quicklime'))) unlock('cell', 'два різні метали в солоній воді щипають язик — у цьому щось є.');
+  };
+
+  /* ---------- Варіанти експериментів ---------- */
+  P.experimentOptions = function (n) {
+    const have = id => n.know.has('m:' + id) && this.stock(id) > 0;
+    const known = [...n.know].filter(x => x.startsWith('m:')).map(x => x.slice(2)).filter(id => M[id]);
+    const avail = known.filter(have);
+    const fuel = this.bestFuel(n);
+    const opts = { heat: [], build: [], alloy: [], composite: [], fuel, temp: fuel ? this.temp(fuel) : null };
+    if (fuel) {
+      const heatable = avail.filter(id => M[id].kind !== 'liquid' || id === 'water');
+      for (const a of heatable) opts.heat.push([a]);
+      for (let i = 0; i < heatable.length; i++) for (let j = i + 1; j < heatable.length; j++) opts.heat.push([heatable[i], heatable[j]]);
+    }
+    for (const k of n.know) {
+      if (!k.startsWith('i:')) continue;
+      const idea = k.slice(2), I = V.IDEAS[idea];
+      const slots = I.slots.map(() => avail.filter(id => M[id].kind !== 'food' && M[id].kind !== 'ore'));
+      if (slots.every(s => s.length)) opts.build.push({ idea, slots });
+    }
+    const metals = avail.filter(id => M[id].kind === 'metal' && !M[id].alloy);
+    for (const a of metals) {
+      for (const b of metals) if (a !== b) opts.alloy.push({ base: a, add: b });
+      if (a === 'iron' && have('charcoal')) opts.alloy.push({ base: 'iron', add: 'charcoal' });
+    }
+    for (const m of V.MATRICES) if (have(m)) for (const f of V.FILLERS) if (have(f) && f !== m) opts.composite.push({ matrix: m, filler: f });
+    return opts;
+  };
+
+  /* Мозок на правилах: обирає експеримент */
+  P.rulePlan = function (n, o) {
+    const rnd = this.rnd;
+    const pick = arr => arr[Math.floor(rnd() * arr.length)];
+    const sig = p => JSON.stringify(p);
+    const cands = [];
+    const tBand = o.temp ? Math.round(o.temp.t / 100) : 0;
+    // нагрівання — новизна важлива
+    for (const inp of o.heat) {
+      const p = { type: 'heat', inputs: inp };
+      if (n.failures.has(sig(p) + '@' + tBand)) continue;
+      let w = 1;
+      if (n.hints.hotter && n.hints.hotterSet === inp.slice().sort().join('+')) w = 0.2;
+      if (inp.some(id => M[id].kind === 'ore')) w *= inp.some(id => id === 'charcoal' || id === 'coal') ? 2.5 : 1.2;
+      if (inp.some(id => M[id].kind === 'food')) w *= 0.5;
+      if (inp.length === 2 && !inp.some(id => M[id].kind === 'ore')) w *= 0.3;
+      const law = V.LAWS.find(l => n.know.has('l:' + l.id) && l.inputs.length === inp.filter(x => x !== 'charcoal' && x !== 'coal').length && l.inputs.every(x => inp.includes(x)));
+      if (law) { if (this.stock(law.out) < 3 && law.out !== 'cooked') w = M[law.out].kind === 'metal' || law.out === 'charcoal' ? 6 : 2.5; else continue; }
+      cands.push({ p, w: w * 1.0 });
+    }
+    for (const b of o.build) {
+      const smart = rnd() < 0.35 + n.skill.craft * 0.08;
+      for (let tries = 0; tries < 3; tries++) {
+        const parts = b.slots.map((s, i) => {
+          if (!smart) return pick(s);
+          const slot = V.IDEAS[b.idea].slots[i];
+          let best = s[0], bs = -1;
+          for (const id of s) { const sc = V.SLOT[slot].test(M[id]) + (rnd() - 0.5) * 0.5; if (sc > bs) { bs = sc; best = id; } }
+          return best;
+        });
+        const p = { type: 'build', idea: b.idea, parts };
+        if (n.failures.has(sig(p))) continue;
+        const have = this.devices[b.idea];
+        let w = have ? 0.5 : 2.2;
+        if (b.idea === 'kiln' && n.hints.wall) w = 2.5;
+        if (b.idea === 'bellows' && n.hints.hotter) w = 2.5;
+        cands.push({ p, w });
+        break;
+      }
+    }
+    for (const a of o.alloy) {
+      const need = a.add === 'charcoal' ? 1100 : Math.max(M[a.base].mp, M[a.add].mp);
+      if (!o.temp || o.temp.t < need) continue;
+      let f;
+      if (a.add === 'charcoal') f = 0.001 + Math.pow(rnd(), 1.5) * 0.04;
+      else f = 0.02 + Math.pow(rnd(), 1.3) * 0.43;
+      const tried = this.triedPairs.has(a.base + '+' + a.add);
+      cands.push({ p: { type: 'alloy', base: a.base, add: a.add, f: +f.toFixed(a.add === 'charcoal' ? 4 : 3) }, w: tried ? 1.2 : 4 });
+    }
+    for (const c of o.composite) {
+      const tried = this.triedPairs.has(c.matrix + '+' + c.filler);
+      cands.push({ p: { type: 'composite', matrix: c.matrix, filler: c.filler, f: +(0.05 + rnd() * 0.5).toFixed(2) }, w: (tried ? 0.04 : 0.3) * n.curiosity });
+    }
+    if (!cands.length) return null;
+    const tot = cands.reduce((s, c) => s + c.w, 0);
+    let r = rnd() * tot;
+    for (const c of cands) { r -= c.w; if (r <= 0) return c.p; }
+    return cands[cands.length - 1].p;
+  };
+
+  /* ---------- Виконання експерименту ---------- */
+  P.runExperiment = function (n, plan) {
+    this.attempts++; this.stats.experiments++;
+    n.skill.craft += 0.05;
+    const sig = JSON.stringify(plan.type === 'alloy' || plan.type === 'composite' ? { t: plan.type } : plan);
+    const fuel = this.bestFuel(n);
+    const T = fuel ? this.temp(fuel) : { t: 0, raw: 0, cap: Infinity, enclosed: false };
+
+    if (plan.type === 'heat') {
+      for (const id of plan.inputs) if (!this.take(id)) return this.fail(n, `забракло: ${M[id].name}`, plan);
+      if (fuel) this.take(fuel);
+      n.heatTries++;
+      const res = V.heat(plan.inputs, T.t, T.enclosed);
+      const names = plan.inputs.map(id => M[id].name).join(' + ');
+      if (T.raw > T.cap && !res.ok) { n.hints.wall = true; this.log(`${n.name}: стіни печі тріщать — вище ${Math.round(T.cap)}°C вони не витримують.`, 'hint', n); }
+      if (res.ok) {
+        const out = res.out, k = out === 'cooked' ? 2 : 3;
+        this.give(out, k);
+        n.know.add('l:' + res.law);
+        const first = !this.worldKnown.has(out);
+        if (this.learn(n, 'm:' + out)) { /* винагорода в learn */ }
+        if (first) {
+          this.reward(n, R.material, 'відкрив новий матеріал');
+          const cold = V.LAWS.find(l => l.id === res.law).minT === 0;
+          this.discoveries.push({ day: this.day(), kind: 'material', id: out, name: M[out].name, by: n.id, how: cold ? `${names}, без нагрівання` : `${names} при ${Math.round(T.t)}°C`, why: res.why, real: true });
+          this.log(`★ ${n.name} ${cold ? 'поєднує' : 'нагріває'} ${names}${cold ? '' : ` до ${Math.round(T.t)}°C`} і отримує новий матеріал — ${M[out].name}! (${res.why})`, 'discovery', n);
+          n.thought = `Вийшло! ${M[out].name}!`;
+        } else { n.thought = `Знову вийшло: ${M[out].name}.`; this.reward(n, 1, 'корисна робота'); }
+        n.hints.hotter = false;
+        return;
+      }
+      n.failures.add(JSON.stringify(plan) + '@' + Math.round(T.t / 100));
+      if (res.hint === 'hotter') { n.hints.hotter = true; n.hints.hotterSet = plan.inputs.slice().sort().join('+'); this.reward(n, 3, 'цінне спостереження'); this.log(`${n.name}: ${names} — ${res.note}`, 'hint', n); }
+      else if (res.hint === 'air') { n.hints.air = true; this.reward(n, 3, 'цінне спостереження'); this.log(`${n.name}: ${names} — ${res.note}`, 'hint', n); }
+      else this.reward(n, R.fail, 'спроба');
+      n.thought = res.note;
+      this.checkIdeas(n);
+      return;
+    }
+
+    if (plan.type === 'build') {
+      const idea = V.IDEAS[plan.idea];
+      const need = {};
+      plan.parts.forEach(id => need[id] = (need[id] || 0) + (idea.structure ? 2 : 1));
+      for (const id in need) if (this.stock(id) < need[id]) return this.fail(n, `забракло: ${M[id].name}`, plan, true);
+      for (const id in need) this.take(id, need[id]);
+      const ev = V.evaluate(plan.idea, plan.parts.map(id => M[id]));
+      const desc = plan.parts.map((id, i) => `${V.SLOT[idea.slots[i]].name} — ${M[id].name}`).join(', ');
+      const cur = this.devices[plan.idea];
+      if (ev.works) {
+        if (!cur || ev.quality > cur.quality + 0.05) {
+          const isNew = !cur;
+          const name = plan.name || (isNew ? idea.name : `${idea.name} (вдосконалений)`);
+          this.devices[plan.idea] = { idea: plan.idea, parts: plan.parts, quality: ev.quality, inventor: n.id, day: this.day(), name, extra: ev.extra };
+          n.know.add('d:' + plan.idea);
+          n.inventions.push(name);
+          if (idea.structure) this.buildStructure(plan.idea, plan.parts, ev);
+          if (isNew) {
+            const bonus = Math.round(R.invent * Math.min(1.2, ev.quality));
+            this.reward(n, bonus, 'новий винахід працює');
+            this.discoveries.push({ day: this.day(), kind: 'device', id: plan.idea, name, by: n.id, how: desc, why: idea.effect, quality: ev.quality, extra: ev.extra });
+            const v = ev.extra && ev.extra.volts ? ` Напруга ${ev.extra.volts.toFixed(2)} В.` : '';
+            this.log(`★ ${n.name} винаходить: ${name}! (${desc}) — працює, якість ${ev.quality}.${v}`, 'discovery', n);
+            n.thought = `Мій ${idea.name} працює!`;
+          } else {
+            this.reward(n, R.improve, 'покращив винахід');
+            this.discoveries.push({ day: this.day(), kind: 'improve', id: plan.idea, name, by: n.id, how: desc, quality: ev.quality });
+            this.log(`${n.name} вдосконалює ${idea.name}: ${desc}. Якість ${cur.quality} → ${ev.quality}.`, 'improve', n);
+          }
+          if (plan.idea === 'kiln') n.hints.wall = false;
+        } else {
+          n.know.add('d:' + plan.idea);
+          this.reward(n, 2, 'відтворив відому конструкцію');
+          n.thought = `Мій ${idea.name} не кращий за наявний.`;
+          n.failures.add(sig);
+        }
+        return;
+      }
+      n.failures.add(sig);
+      const weak = V.SLOT[ev.weakSlot].name;
+      if (ev.partial) {
+        this.reward(n, R.partial, 'майже вийшло');
+        n.thought = `${idea.name} майже працює, але ${weak} підводить.`;
+        this.log(`${n.name} пробує ${idea.name} (${desc}) — майже, але ${weak} не годиться.`, 'try', n);
+      } else {
+        this.reward(n, R.fail, 'спроба');
+        n.thought = `${idea.name} з такого не вийде: ${weak} нікуди не годиться.`;
+      }
+      return;
+    }
+
+    if (plan.type === 'alloy' || plan.type === 'composite') return this.makeMaterial(n, plan, T);
+  };
+
+  P.fail = function (n, why, plan, gatherNeeded) {
+    n.thought = `Не можу почати: ${why}.`;
+    this.reward(n, 0.2, 'спроба');
+    if (plan) n.goalMats = (plan.inputs || plan.parts || []).filter(id => this.stock(id) < 2 && V.BASE_RESOURCES.includes(id));
+  };
+
+  P.buildStructure = function (idea, parts, ev) {
+    const m = M[parts[0]];
+    if (idea === 'kiln') { this.structures.kiln = { wall: parts[0], hp: m.hp, name: m.name }; }
+    else if (idea === 'bellows') this.structures.bellows = { parts };
+    else if (idea === 'pen') this.structures.pen = { parts };
+    else if (idea === 'house') { this.structures.house = { parts }; this.houses = Math.max(this.houses, 1); }
+    else if (idea === 'tablet') this.structures.tablet = { parts };
+    else if (idea === 'cell') this.structures.cell = { parts, volts: ev.extra.volts };
+  };
+
+  /* Генерація нового матеріалу: сплав або композит */
+  P.makeMaterial = function (n, plan, T) {
+    const isAlloy = plan.type === 'alloy';
+    const a = isAlloy ? plan.base : plan.matrix, b = isAlloy ? plan.add : plan.filler;
+    const need = isAlloy ? (b === 'charcoal' ? 1100 : Math.max(M[a].mp, M[b].mp)) : 0;
+    if (!this.take(a)) return this.fail(n, `забракло: ${M[a].name}`, plan);
+    if (!this.take(b)) { this.give(a); return this.fail(n, `забракло: ${M[b].name}`, plan); }
+    if (isAlloy && T.t < need) {
+      n.hints.hotter = true;
+      this.reward(n, 2, 'цінне спостереження');
+      n.thought = `${M[a].name} і ${M[b].name} не змішуються — треба розплавити, а це ${need}°C.`;
+      this.log(`${n.name} намагається сплавити ${M[a].name} з ${M[b].name}, але печі не вистачає жару (${Math.round(T.t)}°C).`, 'hint', n);
+      this.checkIdeas(n);
+      return;
+    }
+    const f = Math.max(0.0005, Math.min(0.6, +plan.f || 0.1));
+    const props = isAlloy ? V.makeAlloy(a, b, f) : V.makeComposite(a, b, f);
+    this.triedPairs.add(a + '+' + b);
+    const rd = isAlloy ? (b === 'charcoal' ? 1000 : 100) : 20;
+    const sigKey = props.comp.map(([id, x]) => id + ':' + Math.round(x * rd)).join('|');
+    let existing = Object.values(M).find(m => m.sig === sigKey);
+    if (existing) {
+      this.give(existing.id, 2);
+      this.learn(n, 'm:' + existing.id);
+      this.reward(n, 1, 'повторив рецепт');
+      n.thought = `Вийшов знайомий ${existing.name}.`;
+      return;
+    }
+    // ще не досить міцне — розсипається
+    if (props.tough < 0.4 || props.hard < 0.3) {
+      this.reward(n, R.fail, 'спроба');
+      n.thought = 'Суміш розсипалася на порох.';
+      this.log(`${n.name}: суміш ${V.describeComp(props.comp)} розсипалася.`, 'try', n);
+      return;
+    }
+    const real = V.matchReal(props.comp);
+    const id = 'g' + (++this.genCount);
+    const pool = Object.values(M).filter(m => this.worldKnown.has(m.id));
+    let name, desc;
+    if (real) {
+      name = real.name;
+      desc = `${real.note}. Склад: ${V.describeComp(props.comp)}.`;
+    } else {
+      name = plan.name && plan.name.length < 30 ? plan.name : V.inventWord(this.rnd);
+      const near = V.nearest(props, pool.concat(V.REAL_PROPS || []));
+      desc = `Нового типу: ${isAlloy ? 'сплав' : 'композит'} ${V.describeComp(props.comp)}. У реальному світі окремої назви не має. Найближчий за властивостями: ${near ? near.name : '—'}.`;
+    }
+    // якщо реальна назва вже зайнята (інша пропорція того ж класу) — додаємо пропорцію
+    if (Object.values(M).some(m => m.name === name)) name = `${name} (${V.describeComp(props.comp)})`;
+    const color = isAlloy ? mixColor(M[a].color, M[b] ? M[b].color : '#333', f) : mixColor(M[a].color, M[b].color, f);
+    const mat = Object.assign({ id, name, kind: isAlloy ? 'alloy' : 'composite', trans: 0, fuel: 0, food: 0, ion: 0, air: 0, binder: 0, plast: 0, hp: 0, mp: 0, cond: 0, pot: 0, sharp: 0, wp: 0 }, props, { sig: sigKey, real: !!real, desc, color, inventor: n.id, day: this.day() });
+    if (!mat.hp) mat.hp = mat.mp ? mat.mp - 100 : 300;
+    if (isAlloy) mat.kind = 'metal', mat.alloy = true;
+    M[id] = mat;
+    this.give(id, 3);
+    // корисність: чи кращий він за все відоме хоча б в одному гнізді?
+    let usefulFor = [];
+    for (const s in V.SLOT) {
+      const sc = V.SLOT[s].test(mat);
+      if (sc < 0.6) continue;
+      let best = 0;
+      for (const m of pool) if (m.kind !== 'food' && m.kind !== 'ore') best = Math.max(best, V.SLOT[s].test(m));
+      if (sc > best + 0.05) usefulFor.push(V.SLOT[s].name);
+    }
+    this.learn(n, 'm:' + id);
+    this.reward(n, real || usefulFor.length ? R.material : 4, 'створив новий матеріал');
+    if (usefulFor.length) this.reward(n, R.useful, 'новий матеріал працює краще за відомі');
+    mat.usefulFor = usefulFor;
+    this.discoveries.push({ day: this.day(), kind: 'material', id, name, by: n.id, how: V.describeComp(props.comp), why: desc, real: !!real, useful: usefulFor });
+    const tag = real ? 'справжній матеріал' : 'невідомий у реальному світі';
+    const use = usefulFor.length ? ` Найкращий для: ${usefulFor.join(', ')}!` : '';
+    if (!real && !usefulFor.length) { this.log(`${n.name} змішує ${V.describeComp(props.comp)} і називає це «${name}». Поки незрозуміло, навіщо воно.`, 'try', n); n.thought = `«${name}»… цікаво, але навіщо?`; this.checkIdeas(n); return; }
+    this.log(`★ ${n.name} створює ${isAlloy ? 'сплав' : 'композит'} «${name}» (${tag}): ${V.describeComp(props.comp)}.${use}`, 'discovery', n);
+    n.thought = `Новий матеріал — «${name}»!`;
+    this.checkIdeas(n);
+  };
+
+  function mixColor(c1, c2, f) {
+    const p = c => [1, 3, 5].map(i => parseInt(c.slice(i, i + 2), 16));
+    const a = p(c1), b = p(c2);
+    return '#' + a.map((v, i) => Math.round(v * (1 - f) + b[i] * f).toString(16).padStart(2, '0')).join('');
+  }
+
+  /* ---------- Вибір дії (мозок на правилах + заохочення) ---------- */
+  P.decide = function (n) {
+    const rnd = this.rnd;
+    const night = this.isNight();
+    if (!isAdult(this, n)) {
+      if (night || n.energy < 30) return this.setTask(n, 'sleep');
+      if (n.hunger > 55 && this.foodStock() > 0) return this.setTask(n, 'eat');
+      return this.setTask(n, 'play');
+    }
+    if ((night && n.energy < 90) || n.energy < 18) return this.setTask(n, 'sleep');
+    if (n.hunger > 60) {
+      if (this.foodStock() > 0) return this.setTask(n, 'eat');
+      if (this.hasDev(n, 'net')) return this.setTask(n, 'fish');
+      return this.setTask(n, rnd() < 0.5 ? 'hunt' : 'gather', { res: 'berries' });
+    }
+    // softmax над очікуваним натхненням × ситуація
+    const food = this.foodStock(), pop = this.npcs.length;
+    const mult = {
+      gather: 1 + (food < pop * 2 ? 1.5 : 0) + (n.goalMats && n.goalMats.length ? 1 : 0),
+      hunt: (food < pop * 3 ? 1.6 : 0.5) * (this.animals.some(a => a.alive && a.type !== 'wolf') ? 1 : 0),
+      fish: this.hasDev(n, 'net') ? (food < pop * 3 ? 1.6 : 0.6) : 0,
+      experiment: (0.5 + n.curiosity) * (food > pop ? 1.2 : 0.5),
+      teach: (0.4 + n.sociability) * (n.social > 40 ? 1.6 : 1) * (pop > 1 ? 1 : 0),
+      build: this.devices.house && this.houses < Math.ceil(pop / 4) ? 1.2 : 0,
+      explore: 0.3 + n.curiosity * 0.6,
+    };
+    const tau = 2.5;
+    let tot = 0; const w = {};
+    for (const a of ACTS) { w[a] = mult[a] > 0 ? Math.exp(Math.min(8, n.val[a] / tau)) * mult[a] : 0; tot += w[a]; }
+    let r = rnd() * tot, act = 'gather';
+    for (const a of ACTS) { r -= w[a]; if (r <= 0) { act = a; break; } }
+    if (act === 'gather') {
+      let res;
+      if (food < pop * 2) res = rnd() < 0.7 ? 'berries' : null;
+      if (!res && this.stock('wood') < 4 && rnd() < 0.6) res = 'wood';
+      if (!res && rnd() < 0.4) {
+        const ores = { copper: 'copper_ore', tin: 'tin_ore', lead: 'lead_ore', iron: 'iron_ore' };
+        const want = Object.keys(ores).filter(m => n.know.has('m:' + m) && this.stock(m) < 2 && this.stock(ores[m]) < 3 && this.findRes(n, ores[m]));
+        if (want.length) res = ores[want[Math.floor(rnd() * want.length)]];
+      }
+      if (!res && n.goalMats && n.goalMats.length) res = n.goalMats.shift();
+      if (!res) {
+        const opts = V.BASE_RESOURCES.filter(id => n.know.has('m:' + id) && id !== 'water' && this.findRes(n, id));
+        opts.sort((x, y) => this.stock(x) - this.stock(y));
+        res = opts.length ? opts[Math.floor(rnd() * Math.min(4, opts.length))] : 'berries';
+      }
+      if (res === 'water') { this.give('water', 2); res = 'berries'; }
+      return this.setTask(n, 'gather', { res });
+    }
+    return this.setTask(n, act);
+  };
+
+  P.setTask = function (n, type, extra = {}) {
+    n.task = Object.assign({ type, phase: 0, t: 0, r: 0, start: this.tick }, extra);
+  };
+
+  P.endTask = function (n) {
+    const t = n.task;
+    if (t && ACTS.includes(t.type)) {
+      const dur = Math.max(1, (this.tick - t.start) / 200);
+      const perTime = (t.r || 0) / dur;
+      n.val[t.type] = n.val[t.type] * 0.85 + Math.min(20, perTime) * 0.15;
+    }
+    n.task = null;
+  };
+
+  /* ---------- Крок поселенця ---------- */
+  P.stepNPC = function (n) {
+    const rnd = this.rnd;
+    n.ageTicks++;
+    const sleeping = n.task && n.task.type === 'sleep' && n.task.phase === 1;
+    n.hunger = Math.min(100, n.hunger + (sleeping ? 0.03 : 0.055));
+    if (!sleeping) n.energy = Math.max(0, n.energy - 0.06);
+    n.social = Math.min(100, n.social + 0.04);
+    if (n.hunger >= 100) n.health -= 0.06; else n.health = Math.min(100, n.health + 0.01 * (this.structures.house ? 2 : 1));
+    if (n.health <= 0) { this.die(n); return; }
+    if (!n.task) this.decide(n);
+    const t = n.task; t.t++;
+    const camp = this.world.camp;
+    const toCamp = () => { const s = this.campSpot(n); return this.moveTo(n, s.x, s.y); };
+
+    switch (t.type) {
+      case 'sleep':
+        if (t.phase === 0) { n.thought = 'Час відпочити.'; if (toCamp()) t.phase = 1; }
+        else { n.energy = Math.min(100, n.energy + 0.22 * (this.structures.house ? 1.5 : 1)); if (n.energy >= 99 && !this.isNight()) this.endTask(n); if (!this.isNight() && n.energy > 85 && n.hunger > 70) this.endTask(n); }
+        break;
+      case 'eat':
+        if (toCamp()) {
+          const f = FOODS.find(x => this.stock(x) > 0);
+          if (f) {
+            let food = M[f].food;
+            if ((f === 'meat' || f === 'fish') && n.know.has('l:cook') && this.stock('wood') > 0) { food = M.cooked.food; this.take('wood'); }
+            if (this.hasDev(n, 'vessel') && f !== 'berries') { food *= 1.3; this.useDev(n, 'vessel'); }
+            this.take(f); n.hunger = Math.max(0, n.hunger - food);
+            n.thought = `Поїв: ${M[f].name}.`;
+          }
+          this.endTask(n);
+        }
+        break;
+      case 'play':
+        if (t.phase === 0) { t.tx = camp.x + (rnd() - 0.5) * 6; t.ty = camp.y + (rnd() - 0.5) * 6; t.phase = 1; n.thought = 'Граюся біля табору!'; }
+        if (this.moveTo(n, t.tx, t.ty) || t.t > 200) this.endTask(n);
+        break;
+      case 'gather': this.doGather(n, t); break;
+      case 'hunt': this.doHunt(n, t); break;
+      case 'fish': this.doFish(n, t); break;
+      case 'explore': this.doExplore(n, t); break;
+      case 'experiment': this.doExperiment(n, t); break;
+      case 'teach': this.doTeach(n, t); break;
+      case 'listen': if (t.t > 90 || !this.npcs.some(m => m.task && m.task.type === 'teach' && m.task.partner === n.id)) this.endTask(n); break;
+      case 'build': this.doBuild(n, t); break;
+      default: this.endTask(n);
+    }
+    if (this.tick % 20 === n.id % 20) { this.look(n, 2); this.checkIdeas(n); }
+  };
+
+  P.doGather = function (n, t) {
+    if (t.phase === 0) {
+      t.tile = this.findRes(n, t.res);
+      if (!t.tile) { this.endTask(n); return; }
+      n.thought = `Іду по ${M[t.res].name}.`; t.phase = 1;
+    }
+    if (t.phase === 1) { if (this.moveTo(n, t.tile.x + 0.5, t.tile.y + 0.5)) { t.phase = 2; t.w = 0; } if (t.t > 900) this.endTask(n); }
+    else if (t.phase === 2) {
+      const sp = 1 + (this.hasDev(n, 'knife') && ['wood', 'resin', 'fiber'].includes(t.res) ? this.devQ('knife') * 0.8 : 0);
+      t.w += sp * (1 + n.skill.gather * 0.05);
+      if (t.w >= 30) {
+        const cap = (this.hasDev(n, 'cart') ? 6 : 3) + (t.res === 'berries' ? 1 : 0);
+        const k = Math.min(cap, Math.floor(t.tile.a));
+        if (k <= 0) { this.endTask(n); return; }
+        t.tile.a -= k; if (t.tile.a < 1 && !['wood', 'berries', 'fiber', 'resin'].includes(t.res)) t.tile.r = t.tile.a > 0 ? t.tile.r : null;
+        if (this.hasDev(n, 'knife') && ['wood', 'resin', 'fiber'].includes(t.res)) this.useDev(n, 'knife');
+        if (this.hasDev(n, 'cart')) this.useDev(n, 'cart');
+        n.carry = { id: t.res, k }; t.phase = 3; n.skill.gather += 0.02; n.gathers++;
+      }
+    } else if (t.phase === 3) {
+      const s = this.campSpot(n);
+      if (this.moveTo(n, s.x, s.y)) { this.give(n.carry.id, n.carry.k); this.reward(n, R.gather * n.carry.k, 'приніс до табору'); n.carry = null; this.endTask(n); }
+    }
+  };
+
+  P.doHunt = function (n, t) {
+    if (t.phase === 0) {
+      let best = null, bd = 28;
+      const canPen = this.structures.pen && n.know.has('d:pen');
+      for (const a of this.animals) if (a.alive && a.type !== 'wolf') { const d = Math.hypot(a.x - n.x, a.y - n.y) * (a.type === 'deer' ? 0.8 : 1); if (d < bd) { bd = d; best = a; } }
+      if (!best) { this.endTask(n); return; }
+      t.target = best.id; t.phase = 1; t.capture = canPen && best.type === 'rabbit' && this.pen < 12 && this.rnd() < 0.5;
+      n.thought = t.capture ? 'Спробую впіймати кроля живим.' : `Полюю на: ${V.ANIMALS[best.type].name}.`;
+    }
+    if (t.phase === 1) {
+      const a = this.animals.find(x => x.id === t.target && x.alive);
+      if (!a || t.t > 700) { n.thought = 'Втекло…'; this.endTask(n); return; }
+      this.moveTo(n, a.x, a.y, 1.25);
+      if (Math.hypot(a.x - n.x, a.y - n.y) < 0.8 && this.rnd() < 0.15) {
+        const spear = this.hasDev(n, 'spear') ? this.devQ('spear') * 0.45 : 0;
+        const p = (0.2 + spear + n.skill.hunt * 0.03) * (a.type === 'deer' ? 0.6 : 1);
+        if (this.rnd() < p) {
+          a.alive = false; n.hunts++; n.skill.hunt += 0.08; this.stats.hunts++;
+          if (spear) this.useDev(n, 'spear');
+          if (t.capture) { this.pen++; this.reward(n, 4, 'приручив тварину'); this.useDev(n, 'pen'); n.thought = 'Кріль у загороді!'; if (this.pen === 1) this.log(`${n.name} приводить першого прирученого кроля в загороду.`, 'life', n); this.endTask(n); return; }
+          const spec = V.ANIMALS[a.type];
+          const knife = this.hasDev(n, 'knife') ? 1 : 0;
+          if (knife) this.useDev(n, 'knife');
+          n.carry = { id: 'meat', k: spec.meat, extra: [['hide', spec.hide + knife], ['bone', spec.bone + knife]] };
+          n.thought = 'Вдале полювання!'; t.phase = 2;
+          this.reward(n, R.hunt, 'вдале полювання');
+          if (!n.know.has('m:hide')) this.learn(n, 'm:hide'); if (!n.know.has('m:bone') && spec.bone + knife > 0) this.learn(n, 'm:bone'); if (!n.know.has('m:meat')) this.learn(n, 'm:meat');
+        }
+      }
+    } else if (t.phase === 2) {
+      const s = this.campSpot(n);
+      if (this.moveTo(n, s.x, s.y)) {
+        this.give(n.carry.id, n.carry.k);
+        for (const [id, k] of n.carry.extra || []) if (k > 0) this.give(id, k);
+        n.carry = null; this.endTask(n);
+      }
+    }
+  };
+
+  P.doFish = function (n, t) {
+    if (t.phase === 0) { t.tile = this.waterEdge(n); if (!t.tile) { this.endTask(n); return; } t.phase = 1; n.thought = 'Йду рибалити.'; }
+    if (t.phase === 1) { if (this.moveTo(n, t.tile.x + 0.5, t.tile.y + 0.5)) { t.phase = 2; t.w = 0; } if (t.t > 900) this.endTask(n); }
+    else if (t.phase === 2) {
+      t.w++;
+      if (t.w > 50) {
+        const w = this.world; let water = null;
+        for (const [i, j] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const u = w.at(t.tile.x + i, t.tile.y + j); if (u && w.isWater(u) && (!water || u.fish > water.fish)) water = u; }
+        const q = this.devQ('net') * (this.hasDev(n, 'raft') ? 2 : 1);
+        const k = water ? Math.min(Math.floor(water.fish), Math.max(1, Math.round(q * 2))) : 0;
+        this.useDev(n, 'net'); if (this.hasDev(n, 'raft')) this.useDev(n, 'raft');
+        if (k > 0) { water.fish -= k; n.carry = { id: 'fish', k }; this.stats.fish += k; this.reward(n, 1.5, 'улов'); n.thought = `Упіймав рибу (${k}).`; t.phase = 3; }
+        else { n.thought = 'Не клює.'; this.endTask(n); }
+      }
+    } else if (t.phase === 3) {
+      const s = this.campSpot(n);
+      if (this.moveTo(n, s.x, s.y)) { this.give('fish', n.carry.k); n.carry = null; this.endTask(n); }
+    }
+  };
+
+  P.doExplore = function (n, t) {
+    if (t.phase === 0) {
+      const w = this.world;
+      for (let k = 0; k < 30; k++) {
+        const tile = w.tiles[Math.floor(this.rnd() * w.tiles.length)];
+        if (!V.walkable(this.world, tile.x + 0.5, tile.y + 0.5)) continue;
+        const d = Math.hypot(tile.x - n.x, tile.y - n.y);
+        if (d > 8 && d < 34) { t.tx = tile.x + 0.5; t.ty = tile.y + 0.5; break; }
+      }
+      if (t.tx === undefined) { this.endTask(n); return; }
+      t.phase = 1; n.thought = 'Цікаво, що там, за пагорбами?';
+    }
+    if (t.phase === 1) {
+      if (this.moveTo(n, t.tx, t.ty) || t.t > 800) {
+        const before = n.know.size; this.look(n, 4);
+        if (n.know.size === before) this.reward(n, 0.3, 'прогулянка'); else this.reward(n, R.explore, 'дослідив місцевість');
+        t.phase = 2;
+      }
+    } else if (t.phase === 2) { if (this.moveTo(n, this.world.camp.x, this.world.camp.y)) this.endTask(n); }
+  };
+
+  P.doExperiment = function (n, t) {
+    if (t.phase === 0) {
+      const ws = { x: this.world.camp.x + 1.6, y: this.world.camp.y - 0.4 };
+      if (!this.moveTo(n, ws.x, ws.y)) return;
+      const opts = this.experimentOptions(n);
+      t.opts = opts;
+      if (V.LLM && V.LLM.canPlan()) {
+        t.phase = 1; t.waitFrom = this.tick; n.thought = 'Обмірковую ідею…';
+        V.LLM.planExperiment(this, n, opts).then(p => { t.llmPlan = p || 'none'; }).catch(() => { t.llmPlan = 'none'; });
+        return;
+      }
+      t.plan = this.rulePlan(n, opts); t.phase = 2; t.w = 0;
+      if (!t.plan) { n.thought = 'Бракує матеріалів для дослідів.'; n.goalMats = ['clay', 'flint', 'stone', 'fiber'].filter(id => n.know.has('m:' + id)); this.endTask(n); return; }
+      n.thought = planText(t.plan);
+    }
+    if (t.phase === 1) {
+      if (t.llmPlan && t.llmPlan !== 'none') { t.plan = t.llmPlan; n.llmNote = t.plan.thought || ''; t.phase = 2; t.w = 0; n.thought = t.plan.thought || planText(t.plan); }
+      else if (t.llmPlan === 'none' || this.tick - t.waitFrom > 600) { t.plan = this.rulePlan(n, t.opts); t.phase = 2; t.w = 0; if (!t.plan) { this.endTask(n); return; } n.thought = planText(t.plan); }
+      return;
+    }
+    if (t.phase === 2) {
+      t.w += this.hasDev(n, 'lens') ? 1.4 : 1;
+      if (t.w >= 70) { if (this.hasDev(n, 'lens')) this.useDev(n, 'lens'); this.runExperiment(n, t.plan); this.endTask(n); }
+    }
+  };
+  function planText(p) {
+    if (p.type === 'heat') return `Спробую нагріти: ${p.inputs.map(id => M[id].name).join(' + ')}.`;
+    if (p.type === 'build') return `Майструю ${V.IDEAS[p.idea].name}: ${p.parts.map(id => M[id].name).join(', ')}.`;
+    if (p.type === 'alloy') return `Сплавляю ${M[p.base].name} з ${p.add === 'charcoal' ? 'вуглецем' : M[p.add].name}.`;
+    if (p.type === 'composite') return `Змішую ${M[p.matrix].name} з ${M[p.filler].name}.`;
+    return 'Думаю.';
+  }
+
+  P.teachable = function (a, b) {
+    const out = [];
+    for (const k of a.know) if (!b.know.has(k) && !k.startsWith('l:')) out.push(k);
+    for (const k of a.know) if (k.startsWith('l:') && !b.know.has(k)) out.unshift(k);
+    out.sort((x, y) => rank(y) - rank(x));
+    return out;
+    function rank(k) { return k.startsWith('d:') ? 4 : k.startsWith('l:') ? 3 : k.startsWith('i:') ? 2 : 1; }
+  };
+  V.knowName = function (k) {
+    const id = k.slice(2);
+    if (k.startsWith('m:')) return M[id] ? M[id].name : id;
+    if (k.startsWith('d:')) return 'як зробити: ' + (V.IDEAS[id] ? V.IDEAS[id].name : id);
+    if (k.startsWith('i:')) return 'ідея: ' + (V.IDEAS[id] ? V.IDEAS[id].name : id);
+    if (k.startsWith('l:')) { const l = V.LAWS.find(x => x.id === id); return l ? 'закон: ' + l.inputs.map(x => M[x].name).join('+') + ' → ' + M[l.out].name : id; }
+    return k;
+  };
+
+  P.doTeach = function (n, t) {
+    if (t.phase === 0) {
+      let best = null, bs = -1;
+      for (const m of this.npcs) {
+        if (m === n || (m.task && ['sleep', 'teach', 'listen'].includes(m.task.type))) continue;
+        const d = Math.hypot(m.x - n.x, m.y - n.y); if (d > 22) continue;
+        const gap = this.teachable(n, m).length;
+        const s = gap * 2 + (n.friends[m.id] || 0) * 0.05 - d * 0.2 + (m.ageTicks < this.DAY * 2 ? 3 : 0);
+        if (s > bs) { bs = s; best = m; }
+      }
+      if (!best) { this.endTask(n); return; }
+      t.partner = best.id; t.phase = 1; n.thought = `Іду поговорити. Співрозмовник: ${best.name}.`;
+    }
+    const m = this.npcs.find(x => x.id === t.partner);
+    if (!m) { this.endTask(n); return; }
+    if (t.phase === 1) {
+      if (this.moveTo(n, m.x + 0.4, m.y) || Math.hypot(m.x - n.x, m.y - n.y) < 0.9) {
+        if (m.task && m.task.type === 'sleep') { this.endTask(n); return; }
+        m.task = { type: 'listen', phase: 0, t: 0, r: 0, start: this.tick, from: n.id };
+        t.phase = 2; t.w = 0;
+        const items = this.teachable(n, m);
+        t.items = items.slice(0, 1 + Math.floor(n.skill.teach / 2.5));
+        t.lines = this.dialogue(n, m, t.items);
+        if (V.LLM && V.LLM.canChat()) V.LLM.chat(this, n, m, t.items).then(l => { if (l) t.lines = l; }).catch(() => {});
+      }
+    } else if (t.phase === 2) {
+      t.w++;
+      if (t.w >= 70) {
+        let learned = 0;
+        for (const k of t.items) if (this.learn(m, k, 'навчився в іншого')) { learned++; this.reward(m, R.taught, 'мене навчили'); }
+        if (learned) { this.reward(n, R.teach * learned, 'допоміг іншому розвиватися'); n.taughtCount += learned; n.skill.teach += 0.1 * learned; this.stats.taught += learned; }
+        else this.reward(n, 1, 'гарна розмова');
+        // допомога голодному
+        if (m.hunger > 55 && this.foodStock() > 0) {
+          const f = FOODS.find(x => this.stock(x) > 0); this.take(f); m.hunger = Math.max(0, m.hunger - M[f].food);
+          this.reward(n, R.help, 'нагодував іншого');
+          if (this.rnd() < 0.15) this.log(`${n.name} помічає, що ${m.name} ${g(m, 'голодний', 'голодна')}, і ділиться їжею.`, 'help', n);
+        }
+        n.social = Math.max(0, n.social - 50); m.social = Math.max(0, m.social - 40);
+        n.friends[m.id] = (n.friends[m.id] || 0) + 8; m.friends[n.id] = (m.friends[n.id] || 0) + 8;
+        if (t.lines && t.lines.length) {
+          n.lastLine = t.lines[0]; if (t.lines[1]) m.lastLine = t.lines[1];
+          if (learned && this.rnd() < 0.5) this.log(`${n.name}: «${t.lines[0]}»${t.lines[1] ? ` — ${m.name}: «${t.lines[1]}»` : ''}`, 'talk', n);
+        }
+        if (m.task && m.task.type === 'listen') this.endTask(m);
+        this.endTask(n);
+      }
+    }
+  };
+
+  P.dialogue = function (a, b, items) {
+    const rnd = this.rnd;
+    if (!items.length) {
+      const small = ['Як тобі сьогоднішній день?', 'Бачив, скільки кролів на луці?', 'Вогонь сьогодні гарно горить.', 'Чула, як вовки вили вночі?'];
+      const ans = ['Добрий день, працюємо!', 'Ага, треба б на них полювати.', 'Тепло — це головне.', 'Тримаймося ближче до вогню.'];
+      const i = Math.floor(rnd() * small.length); return [small[i], ans[i]];
+    }
+    const k = items[0], name = V.knowName(k);
+    const id = k.slice(2);
+    if (k.startsWith('d:')) { const d = this.devices[id]; return [`Дивись, ${V.IDEAS[id].name} робиться так: ${d ? d.parts.map(x => M[x].name).join(', ') : ''}.`, 'О, тепер і я так зможу!']; }
+    if (k.startsWith('l:')) { const l = V.LAWS.find(x => x.id === id); return [`Якщо нагріти ${l.inputs.map(x => M[x].name).join(' з ')}, вийде ${M[l.out].name}.`, 'Не може бути! Треба спробувати.']; }
+    if (k.startsWith('i:')) return [`Я думаю, як ${V.IDEAS[id].verb}. Може, ${V.IDEAS[id].name}?`, 'Цікава думка…'];
+    const m = M[id];
+    return [`Знаєш ${m.name}? ${m.desc ? m.desc.split('.')[0] : V.propLine(m)}.`, 'Запам\'ятаю.'];
+  };
+
+  P.doBuild = function (n, t) {
+    if (t.phase === 0) {
+      const d = this.devices.house;
+      if (!d) { this.endTask(n); return; }
+      for (const id of d.parts) if (this.stock(id) < 2) { n.goalMats = d.parts.filter(x => V.BASE_RESOURCES.includes(x)); this.endTask(n); return; }
+      for (const id of d.parts) this.take(id, 2);
+      t.phase = 1; t.w = 0; n.thought = 'Будую новий дім.';
+    }
+    if (t.phase === 1) {
+      const s = { x: this.world.camp.x - 2, y: this.world.camp.y + 1.5 };
+      if (this.moveTo(n, s.x, s.y)) { t.w++; if (t.w > 120) { this.houses++; this.reward(n, R.build, 'збудував для всіх'); this.log(`${n.name} добудовує ще один дім. Тепер їх ${this.houses}.`, 'life', n); this.endTask(n); } }
+    }
+  };
+
+  P.die = function (n) {
+    this.log(`${n.name} не ${g(n, 'пережив', 'пережила')} голоду. Поселення сумує.`, 'death', n);
+    this.dead.push(n); this.npcs = this.npcs.filter(x => x !== n);
+  };
+
+  /* ---------- Світанок: народження, таблички, загорода ---------- */
+  P.dawn = function () {
+    const rnd = this.rnd;
+    if (this.pen > 0) { const k = Math.floor(this.pen / 2); if (k) { this.give('meat', k); } if (this.pen >= 2 && this.pen < 12) this.pen++; }
+    if (this.structures.tablet) {
+      const writers = this.npcs.filter(n => n.know.has('d:tablet'));
+      const pool = new Set(); for (const w of writers) for (const k of w.know) pool.add(k);
+      let spread = 0;
+      for (const n of this.npcs) {
+        const miss = [...pool].filter(k => !n.know.has(k));
+        for (let i = 0; i < 3 && miss.length; i++) { const k = miss.splice(Math.floor(rnd() * miss.length), 1)[0]; if (this.learn(n, k, 'прочитав таблички')) spread++; }
+      }
+      if (spread) for (const w of writers) this.reward(w, spread * 0.3, 'таблички вчать інших');
+    }
+    const adults = this.npcs.filter(n => isAdult(this, n));
+    if (this.npcs.length < 22 && this.foodStock() >= this.npcs.length * 2 && rnd() < 0.45 && adults.length >= 2) {
+      let pair = null, best = 30;
+      for (const a of adults) for (const id in a.friends) { const b = adults.find(x => x.id == id); if (b && b !== a && a.friends[id] > best) { best = a.friends[id]; pair = [a, b]; } }
+      if (pair) {
+        const c = this.addNPC(pair);
+        c.x = this.world.camp.x; c.y = this.world.camp.y;
+        this.stats.births++;
+        this.log(`У ${pair[0].name} і ${pair[1].name} народжується дитина — ${c.name}.`, 'birth', c);
+      }
+    }
+    this.updateEra();
+  };
+
+  P.updateEra = function () {
+    const has = id => this.worldKnown.has(id);
+    const anyAlloy = pred => Object.values(M).some(m => m.alloy && this.worldKnown.has(m.id) && pred(m));
+    let era = 'Кам\'яна доба';
+    if (has('ceramic')) era = 'Доба кераміки';
+    if (has('copper')) era = 'Мідна доба';
+    if (anyAlloy(m => m.comp.some(c => c[0] === 'tin') && m.comp.some(c => c[0] === 'copper'))) era = 'Бронзова доба';
+    if (has('iron')) era = 'Залізна доба';
+    if (has('glass') && has('iron')) era = 'Доба скла й заліза';
+    if (this.structures.cell) era = 'Електрична доба';
+    if (era !== this.era) { this.era = era; this.log(`Настає нова епоха: ${era}.`, 'era'); }
+  };
+
+  P.step = function () {
+    this.tick++;
+    V.stepAnimals(this);
+    for (const n of this.npcs.slice()) this.stepNPC(n);
+    if (this.tick % this.DAY === Math.floor(this.DAY * 0.06)) this.dawn();
+  };
+
+  /* Підсумок для інтерфейсу / LLM */
+  P.summary = function () {
+    return { day: this.day(), era: this.era, pop: this.npcs.length, food: this.foodStock(), inventions: Object.keys(this.devices).length, materials: this.worldKnown.size };
+  };
+})(window.V = window.V || {});
+
+</script>
+<script>
+/* ============================================================
+   LLM-мозок (необов'язковий)
+   Підтримує Ollama та будь-який OpenAI-сумісний сервер
+   (LM Studio, llama.cpp server, vLLM, Groq, OpenRouter…).
+   LLM лише ПРОПОНУЄ експеримент — рушій фізики перевіряє,
+   чи він справді працює, і нараховує натхнення.
+   ============================================================ */
+(function (V) {
+  'use strict';
+  const M = V.MATERIALS;
+
+  const DEFAULTS = { enabled: false, provider: 'ollama', url: 'http://localhost:11434', model: 'qwen2.5:3b', apiKey: '', plans: true, chat: true, cooldown: 1.5 };
+  let cfg = Object.assign({}, DEFAULTS);
+  try { const s = JSON.parse(localStorage.getItem('valley.llm') || 'null'); if (s) cfg = Object.assign(cfg, s); } catch (e) { /* без сховища */ }
+
+  const state = { busy: false, last: 0, ok: 0, fail: 0, lastError: '', latency: 0, status: 'вимкнено', log: [] };
+
+  const LLM = V.LLM = {
+    cfg, state,
+    save() { try { localStorage.setItem('valley.llm', JSON.stringify(cfg)); } catch (e) { /* ок */ } },
+    set(k, v) { cfg[k] = v; LLM.save(); if (k === 'enabled') state.status = v ? 'увімкнено' : 'вимкнено'; },
+    ready() { return cfg.enabled && !state.busy && (performance.now() - state.last) / 1000 > cfg.cooldown; },
+    canPlan() { return cfg.plans && LLM.ready(); },
+    canChat() { return cfg.chat && LLM.ready() && Math.random() < 0.35; },
+  };
+  state.status = cfg.enabled ? 'увімкнено' : 'вимкнено';
+
+  function endpoint() {
+    const base = cfg.url.replace(/\/+$/, '');
+    return cfg.provider === 'ollama' ? base + '/api/chat' : (base.endsWith('/v1') ? base : base + '/v1') + '/chat/completions';
+  }
+
+  async function call(messages, maxTokens = 300) {
+    state.busy = true; state.last = performance.now();
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 90000);
+    const t0 = performance.now();
+    try {
+      const headers = { 'Content-Type': 'application/json' };
+      if (cfg.apiKey) headers.Authorization = 'Bearer ' + cfg.apiKey;
+      const body = cfg.provider === 'ollama'
+        ? { model: cfg.model, messages, stream: false, format: 'json', options: { temperature: 0.8, num_predict: maxTokens } }
+        : { model: cfg.model, messages, temperature: 0.8, max_tokens: maxTokens };
+      const res = await fetch(endpoint(), { method: 'POST', headers, body: JSON.stringify(body), signal: ctrl.signal });
+      if (!res.ok) throw new Error('HTTP ' + res.status + ' ' + (await res.text()).slice(0, 120));
+      const data = await res.json();
+      const text = cfg.provider === 'ollama' ? data.message && data.message.content : data.choices && data.choices[0].message.content;
+      state.ok++; state.latency = Math.round(performance.now() - t0); state.status = `працює (${state.latency} мс)`;
+      return parseJSON(text || '');
+    } catch (e) {
+      state.fail++;
+      state.lastError = e.name === 'AbortError' ? 'тайм-аут' : (e.message || String(e));
+      state.status = 'помилка: ' + state.lastError;
+      if (/Failed to fetch|NetworkError|Load failed/i.test(state.lastError)) state.status = 'немає з\'єднання (див. «Як під\'єднати»)';
+      return null;
+    } finally { clearTimeout(timer); state.busy = false; state.last = performance.now(); }
+  }
+
+  function parseJSON(text) {
+    const m = text.match(/\{[\s\S]*\}/);
+    if (!m) return null;
+    try { return JSON.parse(m[0]); } catch (e) { return null; }
+  }
+
+  LLM.test = async function () {
+    state.status = 'перевіряю…';
+    const base = cfg.url.replace(/\/+$/, '');
+    try {
+      const headers = cfg.apiKey ? { Authorization: 'Bearer ' + cfg.apiKey } : {};
+      const url = cfg.provider === 'ollama' ? base + '/api/tags' : (base.endsWith('/v1') ? base : base + '/v1') + '/models';
+      const r = await fetch(url, { headers });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const d = await r.json();
+      const models = cfg.provider === 'ollama' ? (d.models || []).map(m => m.name) : (d.data || []).map(m => m.id);
+      state.status = models.length ? 'з\'єднано' : 'з\'єднано, але моделей немає';
+      return { ok: true, models };
+    } catch (e) {
+      state.status = 'немає з\'єднання';
+      return { ok: false, error: e.message || String(e) };
+    }
+  };
+
+  const matLine = id => {
+    const m = M[id];
+    return `${id} = ${m.name}${m.desc ? ' [' + m.desc.split('.')[0] + ']' : ''}: ${V.propLine(m)}`;
+  };
+
+  /* ---------- Планування експерименту ---------- */
+  LLM.planExperiment = async function (sim, n, o) {
+    const shuffle = a => a.map(x => [Math.random(), x]).sort((p, q) => p[0] - q[0]).map(x => x[1]);
+    const mats = new Set();
+    const heat = shuffle(o.heat).slice(0, 20); heat.forEach(h => h.forEach(id => mats.add(id)));
+    const build = o.build.map(b => ({ idea: b.idea, slots: b.slots.map(s => s.slice(0, 10)) }));
+    build.forEach(b => b.slots.forEach(s => s.forEach(id => mats.add(id))));
+    o.alloy.forEach(a => { mats.add(a.base); mats.add(a.add); });
+    o.composite.forEach(c => { mats.add(c.matrix); mats.add(c.filler); });
+    if (!mats.size) return null;
+
+    const R = V.REWARD;
+    const devs = Object.values(sim.devices).map(d => `${V.IDEAS[d.idea].name} (якість ${d.quality})`).join(', ') || 'нічого';
+    const fails = [...n.failures].slice(-6).join('; ');
+    const hints = [n.hints.hotter && 'жару бракує для деяких реакцій', n.hints.air && 'деяким речам потрібен жар без повітря', n.hints.wall && 'стіни печі тріщать від жару'].filter(Boolean).join('; ') || 'немає';
+
+    const sys = `Ти — ${n.name}, поселенець(-ка) у первісній долині. Ти допитлив(-а) і хочеш винаходити.
+Світ підкоряється справжній фізиці й хімії: метали відновлюються з руди вугіллям при достатньому жарі, глина спікається, сплави змінюють твердість і крихкість, пристрій працює лише якщо властивості матеріалів підходять.
+Твоє натхнення зараз: ${Math.round(n.insp)}. Ти отримуєш натхнення: новий матеріал +${R.material}, матеріал кращий за всі відомі +${R.useful}, новий винахід, що працює, до +${R.invent}, покращення +${R.improve}, «майже вийшло» +${R.partial}, невдача +${R.fail}. Найцінніше — те, що справді працює і чого ще ніхто не робив.
+Відповідай ЛИШЕ JSON-об'єктом.`;
+
+    const user = `Температура печі з найкращим паливом: ${o.temp ? Math.round(o.temp.t) + '°C' + (o.temp.enclosed ? ', закрита піч' : ', відкрите вогнище') : 'вогню немає'}.
+Уже є в поселенні: ${devs}.
+Підказки з досвіду: ${hints}.
+Мої невдалі спроби: ${fails || 'немає'}.
+
+Матеріали (id = назва: властивості):
+${[...mats].map(matLine).join('\n')}
+
+Можливі експерименти:
+A) нагріти: ${heat.map(h => '[' + h.join(',') + ']').join(' ') || 'немає'}
+B) змайструвати пристрій (idea і по одному матеріалу на кожне гніздо):
+${build.map(b => `  ${b.idea} — ${V.IDEAS[b.idea].name} (щоб ${V.IDEAS[b.idea].verb}); гнізда: ${V.IDEAS[b.idea].slots.map((s, i) => V.SLOT[s].name + ' з [' + b.slots[i].join(',') + ']').join('; ')}`).join('\n') || '  немає'}
+C) сплав (base + add, f = частка add від 0.01 до 0.5; для вуглецю 0.001–0.045): ${o.alloy.map(a => a.base + '+' + a.add).join(', ') || 'немає'}${o.temp ? '' : ''}
+D) композит (matrix + filler, f = частка наповнювача 0.05–0.6): ${o.composite.map(c => c.matrix + '+' + c.filler).join(', ') || 'немає'}
+
+Обери ОДИН експеримент. Формат:
+{"thought":"коротка думка українською","type":"heat|build|alloy|composite","inputs":["id"],"idea":"id","parts":["id"],"base":"id","add":"id","matrix":"id","filler":"id","f":0.1,"name":"назва для нового матеріалу (необов'язково)"}`;
+
+    const j = await call([{ role: 'system', content: sys }, { role: 'user', content: user }], 260);
+    if (!j) return null;
+    const plan = validate(j, o);
+    state.log.unshift({ t: Date.now(), who: n.name, ok: !!plan, text: j.thought || '', raw: JSON.stringify(j).slice(0, 220) });
+    if (state.log.length > 30) state.log.pop();
+    return plan;
+  };
+
+  function validate(j, o) {
+    const type = String(j.type || '').toLowerCase();
+    const thought = typeof j.thought === 'string' ? j.thought.slice(0, 160) : '';
+    const name = typeof j.name === 'string' ? j.name.slice(0, 28) : '';
+    if (type === 'heat' && Array.isArray(j.inputs)) {
+      const inp = j.inputs.map(String);
+      const ok = o.heat.find(h => h.length === inp.length && h.every(x => inp.includes(x)));
+      if (ok) return { type: 'heat', inputs: ok.slice(), thought, llm: true };
+    }
+    if (type === 'build' && j.idea && Array.isArray(j.parts)) {
+      const b = o.build.find(x => x.idea === j.idea);
+      if (b && j.parts.length === b.slots.length && j.parts.every((id, i) => b.slots[i].includes(id))) return { type: 'build', idea: b.idea, parts: j.parts.map(String), thought, llm: true };
+    }
+    if (type === 'alloy' && o.alloy.some(a => a.base === j.base && a.add === j.add)) {
+      const max = j.add === 'charcoal' ? 0.045 : 0.5, min = j.add === 'charcoal' ? 0.001 : 0.01;
+      const f = Math.max(min, Math.min(max, +j.f || (j.add === 'charcoal' ? 0.008 : 0.1)));
+      return { type: 'alloy', base: j.base, add: j.add, f, name, thought, llm: true };
+    }
+    if (type === 'composite' && o.composite.some(c => c.matrix === j.matrix && c.filler === j.filler)) {
+      const f = Math.max(0.05, Math.min(0.6, +j.f || 0.2));
+      return { type: 'composite', matrix: j.matrix, filler: j.filler, f, name, thought, llm: true };
+    }
+    return null;
+  }
+
+  /* ---------- Розмова ---------- */
+  LLM.chat = async function (sim, a, b, items) {
+    const topic = items.length ? items.map(V.knowName).join('; ') : 'щоденне життя';
+    const sys = `Ти пишеш репліки двох поселенців первісної долини. Коротко (до 15 слів кожна), живо, українською. Відповідай лише JSON {"a":"...","b":"..."}.`;
+    const user = `${a.name} (${a.thought}) розповідає ${b.name} про: ${topic}. ${b.name} зараз: ${b.thought}. Епоха: ${sim.era}.`;
+    const j = await call([{ role: 'system', content: sys }, { role: 'user', content: user }], 120);
+    if (!j || typeof j.a !== 'string') return null;
+    return [j.a.slice(0, 140), typeof j.b === 'string' ? j.b.slice(0, 140) : ''];
+  };
+})(window.V = window.V || {});
+
+</script>
+<script>
+/* ============================================================
+   Малювання світу на canvas
+   ============================================================ */
+(function (V) {
+  'use strict';
+  const M = V.MATERIALS;
+
+  const TERRAIN = [
+    ['#1f4f73', '#24597f'],  // глибока вода
+    ['#3b7ea3', '#4389ad'],  // мілина
+    ['#d9c48d', '#e0cc97'],  // пісок
+    ['#7fa35a', '#88ab61'],  // лука
+    ['#4d7a3e', '#557f44'],  // ліс
+    ['#9b8f74', '#a5997d'],  // пагорби
+    ['#7b7670', '#86817b'],  // гори
+  ];
+  const RES_MARK = {
+    copper_ore: '#3fbf8f', tin_ore: '#3a2f28', lead_ore: '#b9c2cc', iron_ore: '#b5452c', coal: '#1b1b1e',
+    flint: '#3d434c', limestone: '#f1eee2', salt: '#ffffff', clay: '#a8613e', resin: '#e0a02e', fiber: '#d2dd7a', berries: '#c43d64',
+  };
+
+  function Renderer(canvas, sim) {
+    this.c = canvas; this.ctx = canvas.getContext('2d');
+    this.sim = sim; this.sel = null; this.terrain = null; this.ts = 12; this.zoom = 1;
+    this.resize();
+  }
+  V.Renderer = Renderer;
+  const P = Renderer.prototype;
+
+  P.setSim = function (sim) { this.sim = sim; this.terrain = null; this.resize(); };
+
+  P.resize = function () {
+    const w = this.sim.world;
+    const box = this.c.parentElement.getBoundingClientRect();
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const ts = Math.max(4, Math.min(box.width / w.W, 18)) * this.zoom;
+    this.ts = ts;
+    this.c.style.width = (ts * w.W) + 'px';
+    this.c.style.height = (ts * w.H) + 'px';
+    this.c.width = Math.round(ts * w.W * dpr); this.c.height = Math.round(ts * w.H * dpr);
+    this.dpr = dpr;
+    this.terrain = null;
+  };
+
+  P.buildTerrain = function () {
+    const w = this.sim.world, ts = this.ts * this.dpr;
+    const off = document.createElement('canvas');
+    off.width = this.c.width; off.height = this.c.height;
+    const g = off.getContext('2d');
+    for (const t of w.tiles) {
+      const pal = TERRAIN[t.t];
+      g.fillStyle = t.shade > 0.5 ? pal[0] : pal[1];
+      g.fillRect(Math.floor(t.x * ts), Math.floor(t.y * ts), Math.ceil(ts) + 1, Math.ceil(ts) + 1);
+    }
+    // берегова лінія
+    g.strokeStyle = 'rgba(255,255,255,0.18)'; g.lineWidth = Math.max(1, ts * 0.08);
+    for (const t of w.tiles) {
+      if (!w.isWater(t)) continue;
+      for (const [i, j, ax, ay, bx, by] of [[1, 0, 1, 0, 1, 1], [-1, 0, 0, 0, 0, 1], [0, 1, 0, 1, 1, 1], [0, -1, 0, 0, 1, 0]]) {
+        const u = w.at(t.x + i, t.y + j);
+        if (u && !w.isWater(u)) { g.beginPath(); g.moveTo((t.x + ax) * ts, (t.y + ay) * ts); g.lineTo((t.x + bx) * ts, (t.y + by) * ts); g.stroke(); }
+      }
+    }
+    // гори — штрихування
+    g.strokeStyle = 'rgba(40,36,32,0.25)'; g.lineWidth = Math.max(1, ts * 0.07);
+    for (const t of w.tiles) if (t.t === V.T.MOUNT) {
+      const x = t.x * ts, y = t.y * ts;
+      g.beginPath(); g.moveTo(x + ts * 0.2, y + ts * 0.8); g.lineTo(x + ts * 0.5, y + ts * 0.25); g.lineTo(x + ts * 0.8, y + ts * 0.8); g.stroke();
+    }
+    this.terrain = off;
+  };
+
+  P.draw = function (frameT) {
+    const sim = this.sim, w = sim.world, g = this.ctx, d = this.dpr, ts = this.ts * d;
+    if (!this.terrain) this.buildTerrain();
+    g.drawImage(this.terrain, 0, 0);
+
+    // ресурси
+    for (const t of w.tiles) {
+      if (!t.r || t.a < 0.5) continue;
+      const cx = (t.x + 0.5) * ts, cy = (t.y + 0.5) * ts;
+      if (t.r === 'wood') {
+        const s = 0.25 + 0.18 * (t.a / t.max);
+        g.fillStyle = '#2f5a2b'; g.beginPath(); g.arc(cx, cy, ts * s, 0, 6.29); g.fill();
+        g.fillStyle = 'rgba(255,255,255,0.08)'; g.beginPath(); g.arc(cx - ts * 0.08, cy - ts * 0.08, ts * s * 0.5, 0, 6.29); g.fill();
+      } else if (t.r === 'stone' || t.r === 'sand' || t.r === 'water') {
+        if (t.r === 'stone') { g.fillStyle = 'rgba(70,66,60,0.35)'; g.fillRect(cx - ts * 0.15, cy - ts * 0.1, ts * 0.3, ts * 0.2); }
+      } else {
+        const col = RES_MARK[t.r] || '#fff';
+        g.fillStyle = col;
+        const r = ts * (t.r === 'berries' ? 0.13 : 0.17);
+        if (t.r === 'berries') { for (const [ox, oy] of [[-0.12, 0], [0.12, 0.05], [0, -0.12]]) { g.beginPath(); g.arc(cx + ox * ts, cy + oy * ts, r, 0, 6.29); g.fill(); } }
+        else { g.beginPath(); g.moveTo(cx, cy - r * 1.3); g.lineTo(cx + r * 1.2, cy); g.lineTo(cx, cy + r * 1.3); g.lineTo(cx - r * 1.2, cy); g.closePath(); g.fill(); g.strokeStyle = 'rgba(0,0,0,0.35)'; g.lineWidth = d; g.stroke(); }
+      }
+    }
+
+    this.drawCamp(g, ts, d, frameT);
+
+    // тварини
+    for (const a of sim.animals) {
+      if (!a.alive) continue;
+      const x = a.x * ts, y = a.y * ts;
+      if (a.type === 'rabbit') { g.fillStyle = '#f1ece2'; g.beginPath(); g.arc(x, y, ts * 0.16, 0, 6.29); g.fill(); g.strokeStyle = 'rgba(0,0,0,0.3)'; g.lineWidth = d; g.stroke(); }
+      else if (a.type === 'deer') { g.fillStyle = '#9a6a3a'; g.beginPath(); g.ellipse(x, y, ts * 0.32, ts * 0.2, a.dir, 0, 6.29); g.fill(); g.fillStyle = '#e8d8bb'; g.beginPath(); g.arc(x + Math.cos(a.dir) * ts * 0.3, y + Math.sin(a.dir) * ts * 0.3, ts * 0.09, 0, 6.29); g.fill(); }
+      else {
+        g.fillStyle = '#4b4f55'; g.beginPath();
+        g.moveTo(x + Math.cos(a.dir) * ts * 0.38, y + Math.sin(a.dir) * ts * 0.38);
+        g.lineTo(x + Math.cos(a.dir + 2.5) * ts * 0.28, y + Math.sin(a.dir + 2.5) * ts * 0.28);
+        g.lineTo(x + Math.cos(a.dir - 2.5) * ts * 0.28, y + Math.sin(a.dir - 2.5) * ts * 0.28);
+        g.closePath(); g.fill();
+        g.fillStyle = '#e8c25a'; g.beginPath(); g.arc(x + Math.cos(a.dir) * ts * 0.2, y + Math.sin(a.dir) * ts * 0.2, ts * 0.05, 0, 6.29); g.fill();
+      }
+    }
+
+    // поселенці
+    for (const n of sim.npcs) {
+      const x = n.x * ts, y = n.y * ts;
+      const child = n.ageTicks < sim.DAY * 2;
+      const r = ts * (child ? 0.24 : 0.34);
+      const asleep = n.task && n.task.type === 'sleep' && n.task.phase === 1;
+      g.globalAlpha = asleep ? 0.55 : 1;
+      g.fillStyle = 'rgba(0,0,0,0.25)'; g.beginPath(); g.ellipse(x, y + r * 0.8, r, r * 0.4, 0, 0, 6.29); g.fill();
+      g.fillStyle = n.color; g.beginPath(); g.arc(x, y, r, 0, 6.29); g.fill();
+      g.strokeStyle = '#141a20'; g.lineWidth = 1.4 * d; g.stroke();
+      if (n.carry) { g.fillStyle = (M[n.carry.id] && M[n.carry.id].color) || '#fff'; g.fillRect(x + r * 0.4, y - r * 1.1, r * 0.8, r * 0.8); g.strokeStyle = '#141a20'; g.lineWidth = d; g.strokeRect(x + r * 0.4, y - r * 1.1, r * 0.8, r * 0.8); }
+      if (n.task && n.task.type === 'experiment' && n.task.phase >= 1) {
+        g.fillStyle = n.task.phase === 1 ? '#8fd3ff' : '#ffcf5a';
+        g.beginPath(); g.arc(x, y - r * 1.6, r * 0.35 + Math.sin(frameT / 150) * r * 0.08, 0, 6.29); g.fill();
+      }
+      if (n.task && n.task.type === 'teach' && n.task.phase === 2) {
+        g.fillStyle = '#ffffff'; g.strokeStyle = '#141a20'; g.lineWidth = d;
+        const bx = x + r * 0.6, by = y - r * 2.1;
+        g.beginPath(); g.roundRect ? g.roundRect(bx, by, r * 1.9, r * 1.1, r * 0.3) : g.rect(bx, by, r * 1.9, r * 1.1); g.fill(); g.stroke();
+        g.fillStyle = '#141a20'; for (let i = 0; i < 3; i++) { g.beginPath(); g.arc(bx + r * (0.45 + i * 0.5), by + r * 0.55, r * 0.12, 0, 6.29); g.fill(); }
+      }
+      if (asleep) { g.fillStyle = '#e6eef7'; g.font = `${Math.round(r * 1.3)}px sans-serif`; g.fillText('z', x + r * 0.7, y - r * 0.6); }
+      g.globalAlpha = 1;
+      if (this.sel === n.id) {
+        g.strokeStyle = '#ffd36b'; g.lineWidth = 2.5 * d; g.beginPath(); g.arc(x, y, r + 4 * d, 0, 6.29); g.stroke();
+        g.font = `600 ${Math.round(11 * d)}px Rubik, system-ui, sans-serif`;
+        const tw = g.measureText(n.name).width;
+        g.fillStyle = 'rgba(20,26,32,0.85)'; g.fillRect(x - tw / 2 - 5 * d, y - r - 22 * d, tw + 10 * d, 16 * d);
+        g.fillStyle = '#fff'; g.fillText(n.name, x - tw / 2, y - r - 10 * d);
+      }
+    }
+
+    // ніч
+    const p = sim.phase();
+    let dark = 0;
+    if (p > 0.7) dark = Math.min(1, (p - 0.7) / 0.1); else if (p < 0.08) dark = 1 - p / 0.08;
+    if (dark > 0) {
+      g.fillStyle = `rgba(10,18,40,${0.55 * dark})`; g.fillRect(0, 0, this.c.width, this.c.height);
+      const cx = w.camp.x * ts, cy = w.camp.y * ts;
+      const glowR = ts * (sim.structures.cell ? 9 : 5);
+      const grad = g.createRadialGradient(cx, cy, 0, cx, cy, glowR);
+      const col = sim.structures.cell ? '200,230,255' : '255,170,70';
+      grad.addColorStop(0, `rgba(${col},${0.35 * dark})`); grad.addColorStop(1, `rgba(${col},0)`);
+      g.fillStyle = grad; g.beginPath(); g.arc(cx, cy, glowR, 0, 6.29); g.fill();
+    }
+  };
+
+  P.drawCamp = function (g, ts, d, frameT) {
+    const sim = this.sim, c = sim.world.camp;
+    const cx = c.x * ts, cy = c.y * ts;
+    // утоптана земля
+    g.fillStyle = 'rgba(120,96,64,0.35)'; g.beginPath(); g.arc(cx, cy, ts * 2.6, 0, 6.29); g.fill();
+    // вогнище
+    g.fillStyle = '#5a4a3a'; g.beginPath(); g.arc(cx, cy, ts * 0.42, 0, 6.29); g.fill();
+    const fl = 0.75 + Math.sin(frameT / 90) * 0.1 + Math.sin(frameT / 37) * 0.06;
+    g.fillStyle = '#ff9a2e'; g.beginPath(); g.arc(cx, cy, ts * 0.28 * fl, 0, 6.29); g.fill();
+    g.fillStyle = '#ffe17a'; g.beginPath(); g.arc(cx, cy, ts * 0.14 * fl, 0, 6.29); g.fill();
+    const s = sim.structures;
+    // майстерня
+    g.fillStyle = 'rgba(70,52,36,0.8)'; g.fillRect(cx + ts * 1.2, cy - ts * 0.8, ts * 0.8, ts * 0.5);
+    if (s.kiln) {
+      const kx = cx + ts * 1.9, ky = cy + ts * 0.9;
+      g.fillStyle = M[s.kiln.wall] ? M[s.kiln.wall].color : '#888';
+      g.beginPath(); g.arc(kx, ky, ts * 0.55, Math.PI, 0); g.lineTo(kx + ts * 0.55, ky + ts * 0.25); g.lineTo(kx - ts * 0.55, ky + ts * 0.25); g.closePath(); g.fill();
+      g.strokeStyle = '#141a20'; g.lineWidth = d; g.stroke();
+      g.fillStyle = '#ff7a2e'; g.fillRect(kx - ts * 0.15, ky - ts * 0.05, ts * 0.3, ts * 0.25);
+      if (s.bellows) { g.fillStyle = '#7a4f2e'; g.beginPath(); g.moveTo(kx + ts * 0.6, ky); g.lineTo(kx + ts * 1.1, ky - ts * 0.25); g.lineTo(kx + ts * 1.1, ky + ts * 0.25); g.closePath(); g.fill(); }
+    }
+    if (s.pen) {
+      const px = cx - ts * 3.6, py = cy - ts * 1.4, pw = ts * 1.6;
+      g.strokeStyle = '#6b4a2b'; g.lineWidth = 1.5 * d; g.strokeRect(px, py, pw, pw);
+      g.fillStyle = '#f1ece2';
+      for (let i = 0; i < Math.min(sim.pen, 9); i++) { g.beginPath(); g.arc(px + ts * 0.3 + (i % 3) * ts * 0.5, py + ts * 0.3 + Math.floor(i / 3) * ts * 0.5, ts * 0.12, 0, 6.29); g.fill(); }
+    }
+    for (let i = 0; i < sim.houses; i++) {
+      const hx = cx - ts * 2.4 + (i % 3) * ts * 1.2, hy = cy + ts * 1.5 + Math.floor(i / 3) * ts * 1.2;
+      const wall = sim.devices.house ? M[sim.devices.house.parts[0]] : null;
+      g.fillStyle = wall ? wall.color : '#a3462e'; g.fillRect(hx - ts * 0.4, hy - ts * 0.2, ts * 0.8, ts * 0.55);
+      g.fillStyle = '#5a3a24'; g.beginPath(); g.moveTo(hx - ts * 0.5, hy - ts * 0.2); g.lineTo(hx, hy - ts * 0.6); g.lineTo(hx + ts * 0.5, hy - ts * 0.2); g.closePath(); g.fill();
+    }
+    if (s.tablet) { g.fillStyle = '#c46a3c'; g.fillRect(cx - ts * 0.3, cy - ts * 2, ts * 0.6, ts * 0.45); g.fillStyle = 'rgba(20,20,20,0.5)'; for (let i = 0; i < 3; i++) g.fillRect(cx - ts * 0.22, cy - ts * 1.92 + i * ts * 0.12, ts * 0.44, ts * 0.04); }
+    if (s.cell) {
+      const ex = cx + ts * 0.2, ey = cy + ts * 2.2;
+      g.fillStyle = '#c9ccd1'; g.fillRect(ex - ts * 0.2, ey - ts * 0.3, ts * 0.4, ts * 0.5);
+      g.fillStyle = `rgba(160,220,255,${0.6 + Math.sin(frameT / 200) * 0.3})`; g.beginPath(); g.arc(ex, ey - ts * 0.45, ts * 0.12, 0, 6.29); g.fill();
+    }
+  };
+
+  P.pick = function (px, py) {
+    const ts = this.ts;
+    let best = null, bd = 1.2;
+    for (const n of this.sim.npcs) { const d = Math.hypot(n.x - px / ts, n.y - py / ts); if (d < bd) { bd = d; best = n; } }
+    return best;
+  };
+})(window.V = window.V || {});
+
+</script>
+<script>
+/* ============================================================
+   Інтерфейс спостерігача
+   ============================================================ */
+(function (V) {
+  'use strict';
+  const $ = id => document.getElementById(id);
+  const M = V.MATERIALS;
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+  let seed = Math.floor(Math.random() * 1e6);
+  let sim = new V.Sim(seed);
+  const canvas = $('world');
+  const R = new V.Renderer(canvas, sim);
+  let speed = 1, paused = false, acc = 0, last = performance.now();
+  let tab = 'chron', chronFilter = 'all', selMat = null;
+
+  /* ---------- керування ---------- */
+  function setSpeed(s) {
+    speed = s; paused = false;
+    document.querySelectorAll('.spd').forEach(b => b.classList.toggle('on', +b.dataset.s === s));
+    $('pause').classList.remove('on'); $('pause').textContent = '❚❚';
+  }
+  document.querySelectorAll('.spd').forEach(b => b.addEventListener('click', () => setSpeed(+b.dataset.s)));
+  $('pause').addEventListener('click', () => {
+    paused = !paused; $('pause').classList.toggle('on', paused); $('pause').textContent = paused ? '▶' : '❚❚';
+    $('pause').setAttribute('aria-label', paused ? 'Продовжити' : 'Пауза');
+  });
+  setSpeed(1);
+
+  document.querySelectorAll('.tab').forEach(b => b.addEventListener('click', () => {
+    tab = b.dataset.tab;
+    document.querySelectorAll('.tab').forEach(x => x.classList.toggle('on', x === b));
+    document.querySelectorAll('.pane').forEach(p => p.classList.toggle('on', p.id === 'pane-' + tab));
+    renderPanel(true);
+  }));
+  document.querySelectorAll('#chronFilter .chip').forEach(b => b.addEventListener('click', () => {
+    chronFilter = b.dataset.f;
+    document.querySelectorAll('#chronFilter .chip').forEach(x => x.classList.toggle('on', x === b));
+    renderPanel(true);
+  }));
+
+  function select(id) {
+    R.sel = id;
+    if (tab !== 'people') document.querySelector('.tab[data-tab="people"]').click();
+    renderPanel(true);
+  }
+  canvas.addEventListener('click', e => {
+    const r = canvas.getBoundingClientRect();
+    const n = R.pick(e.clientX - r.left, e.clientY - r.top);
+    if (n) select(n.id);
+  });
+  $('people').addEventListener('click', e => { const li = e.target.closest('li[data-id]'); if (li) select(+li.dataset.id); });
+  $('chron').addEventListener('click', e => { const w = e.target.closest('[data-npc]'); if (w) select(+w.dataset.npc); });
+  $('person').addEventListener('click', e => { if (e.target.closest('.close')) { R.sel = null; renderPanel(true); } });
+  $('disc').addEventListener('click', e => { const m = e.target.closest('[data-mat]'); if (m) { selMat = selMat === m.dataset.mat ? null : m.dataset.mat; renderPanel(true); } });
+
+  $('newWorld').addEventListener('click', () => {
+    seed = Math.floor(Math.random() * 1e6);
+    // прибрати згенеровані матеріали попереднього світу
+    for (const id of Object.keys(M)) if (/^g\d+$/.test(id)) delete M[id];
+    sim = new V.Sim(seed); R.setSim(sim); R.sel = null; selMat = null;
+    renderPanel(true);
+  });
+
+  function setZoom(z) {
+    const wrap = $('canvasWrap');
+    const cx = (wrap.scrollLeft + wrap.clientWidth / 2) / (R.ts || 1), cy = (wrap.scrollTop + wrap.clientHeight / 2) / (R.ts || 1);
+    R.zoom = Math.max(1, Math.min(4, z)); R.resize();
+    wrap.scrollLeft = R.zoom === 1 ? 0 : cx * R.ts - wrap.clientWidth / 2;
+    wrap.scrollTop = R.zoom === 1 ? 0 : cy * R.ts - wrap.clientHeight / 2;
+  }
+  $('zoomIn').addEventListener('click', () => {
+    const wrap = $('canvasWrap');
+    if (R.zoom === 1) { R.zoom = 2; R.resize(); wrap.scrollLeft = sim.world.camp.x * R.ts - wrap.clientWidth / 2; wrap.scrollTop = sim.world.camp.y * R.ts - wrap.clientHeight / 2; }
+    else setZoom(R.zoom + 1);
+  });
+  $('zoomOut').addEventListener('click', () => setZoom(R.zoom - 1));
+
+  let rsz; window.addEventListener('resize', () => { clearTimeout(rsz); rsz = setTimeout(() => R.resize(), 120); });
+
+  /* ---------- LLM-налаштування ---------- */
+  const L = V.LLM;
+  $('llmOn').checked = L.cfg.enabled; $('llmProv').value = L.cfg.provider; $('llmUrl').value = L.cfg.url;
+  $('llmModel').value = L.cfg.model; $('llmKey').value = L.cfg.apiKey; $('llmPlans').checked = L.cfg.plans; $('llmChat').checked = L.cfg.chat;
+  $('llmOn').addEventListener('change', e => L.set('enabled', e.target.checked));
+  $('llmProv').addEventListener('change', e => {
+    L.set('provider', e.target.value);
+    if (e.target.value === 'ollama' && /1234/.test($('llmUrl').value)) { $('llmUrl').value = 'http://localhost:11434'; L.set('url', $('llmUrl').value); }
+    if (e.target.value === 'openai' && /11434/.test($('llmUrl').value)) { $('llmUrl').value = 'http://localhost:1234/v1'; L.set('url', $('llmUrl').value); }
+  });
+  $('llmUrl').addEventListener('change', e => L.set('url', e.target.value.trim()));
+  $('llmModel').addEventListener('change', e => L.set('model', e.target.value.trim()));
+  $('llmKey').addEventListener('change', e => L.set('apiKey', e.target.value.trim()));
+  $('llmPlans').addEventListener('change', e => L.set('plans', e.target.checked));
+  $('llmChat').addEventListener('change', e => L.set('chat', e.target.checked));
+  $('llmTest').addEventListener('click', async () => {
+    const r = await L.test();
+    if (r.ok) $('llmModels').innerHTML = r.models.map(m => `<option value="${esc(m)}">`).join('');
+    if (r.ok && r.models.length && !r.models.includes(L.cfg.model)) L.state.status += ` · моделі «${L.cfg.model}» немає, доступні: ${r.models.slice(0, 4).join(', ')}`;
+    renderPanel(true);
+  });
+
+  /* ---------- головний цикл ---------- */
+  function frame(now) {
+    const dt = Math.min(0.25, (now - last) / 1000); last = now;
+    if (!paused) {
+      acc += dt * 10 * speed;
+      let steps = 0;
+      const t0 = performance.now();
+      while (acc >= 1 && steps < 2000) { sim.step(); acc -= 1; steps++; if (steps % 50 === 0 && performance.now() - t0 > 28) { acc = 0; break; } }
+    }
+    R.draw(now);
+    header();
+    requestAnimationFrame(frame);
+  }
+
+  let lastHeader = 0;
+  function header() {
+    const now = performance.now();
+    if (now - lastHeader < 200) return;
+    lastHeader = now;
+    $('era').textContent = sim.era;
+    $('day').textContent = 'День ' + sim.day() + (sim.isNight() ? ' · ніч' : '');
+    $('sun').style.setProperty('--p', (sim.phase() * 100).toFixed(1) + '%');
+    const insp = sim.npcs.reduce((s, n) => s + n.insp, 0);
+    const animals = sim.animals.filter(a => a.alive);
+    const cnt = t => animals.filter(a => a.type === t).length;
+    $('stats').innerHTML =
+      `<span><b>${sim.npcs.length}</b>мешканців</span>` +
+      `<span><b>${sim.foodStock()}</b>їжі в запасі</span>` +
+      `<span><b>${sim.worldKnown.size}</b>відомих матеріалів</span>` +
+      `<span><b>${Object.keys(sim.devices).length}</b>винаходів</span>` +
+      `<span><b>${sim.attempts}</b>дослідів</span>` +
+      `<span><b>${Math.round(insp)}</b>натхнення</span>` +
+      `<span><b>${cnt('rabbit')}</b>кролів · <b>${cnt('deer')}</b>оленів · <b>${cnt('wolf')}</b>вовків</span>`;
+    renderPanel(false);
+  }
+
+  /* ---------- панелі ---------- */
+  let lastPanel = 0, lastChronLen = -1;
+  function renderPanel(force) {
+    const now = performance.now();
+    if (!force && now - lastPanel < 500) return;
+    lastPanel = now;
+    if (tab === 'chron') renderChron(force);
+    else if (tab === 'people') renderPeople();
+    else if (tab === 'disc') renderDisc();
+    else renderBrain();
+  }
+
+  function npcName(id) { const n = sim.npcs.find(x => x.id === id) || sim.dead.find(x => x.id === id); return n ? n.name : ''; }
+
+  function renderChron(force) {
+    const key = sim.chronicle.length + ':' + (sim.chronicle.length ? sim.chronicle[sim.chronicle.length - 1].t : 0) + chronFilter;
+    if (!force && key === lastChronLen) return;
+    lastChronLen = key;
+    const want = c => chronFilter === 'all' ? true : chronFilter === 'discovery' ? (c.kind === 'discovery' || c.kind === 'improve' || c.kind === 'era') : chronFilter === 'life' ? ['life', 'birth', 'death', 'help', 'find'].includes(c.kind) : chronFilter === 'idea' ? (c.kind === 'idea' || c.kind === 'hint' || c.kind === 'try') : c.kind === chronFilter;
+    const items = sim.chronicle.filter(want).slice(-160).reverse();
+    $('chron').innerHTML = items.map(c => {
+      let t = esc(c.text);
+      const nm = c.npc ? npcName(c.npc) : '';
+      if (nm) t = t.replace(esc(nm), `<span class="who" data-npc="${c.npc}">${esc(nm)}</span>`);
+      return `<li class="${c.kind}"><span class="d">Д${c.day}</span><span class="t">${t}</span></li>`;
+    }).join('') || '<li><span></span><span class="muted">Поки тихо.</span></li>';
+  }
+
+  const meter = (label, v, cls = '') => `<span>${label}</span><span class="meter ${cls}"><i style="width:${Math.max(0, Math.min(100, v)).toFixed(0)}%"></i></span><span class="v">${Math.round(v)}</span>`;
+
+  function renderPeople() {
+    const sel = sim.npcs.find(n => n.id === R.sel) || sim.dead.find(n => n.id === R.sel);
+    if (sel) {
+      const n = sel, alive = sim.npcs.includes(n);
+      const act = n.task ? V.ACT_NAMES[n.task.type] || n.task.type : '—';
+      const valMax = Math.max(...Object.values(n.val), 1);
+      const vals = Object.entries(n.val).sort((a, b) => b[1] - a[1]).map(([k, v]) => meter(V.ACT_NAMES[k], v / valMax * 100, 'gold').replace(/<span class="v">[^<]*<\/span>/, `<span class="v">${v.toFixed(1)}</span>`)).join('');
+      const designs = [...n.know].filter(k => k.startsWith('d:')).map(k => `<span class="tag d">${esc(V.IDEAS[k.slice(2)].name)}</span>`).join('');
+      const ideas = [...n.know].filter(k => k.startsWith('i:') && !n.know.has('d:' + k.slice(2))).map(k => `<span class="tag i">${esc(V.IDEAS[k.slice(2)].name)}</span>`).join('');
+      const mats = [...n.know].filter(k => k.startsWith('m:')).length;
+      const laws = [...n.know].filter(k => k.startsWith('l:')).length;
+      const friends = Object.entries(n.friends).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([id]) => npcName(+id)).filter(Boolean).join(', ');
+      const age = n.ageTicks < sim.DAY * 2 ? 'дитина' : 'дорослий';
+      const lr = n.lastReward && sim.tick - n.lastReward.t < sim.DAY ? `<div class="reward">+${n.lastReward.amt.toFixed(1)} натхнення — ${esc(n.lastReward.why)}</div>` : '';
+      $('person').innerHTML = `<div class="person">
+        <div class="head"><span class="dot" style="background:${n.color}"></span><span class="nm">${esc(n.name)}</span><span class="muted">${alive ? age + ' · ' + act : 'помер(ла)'}</span><button class="close" aria-label="Закрити">✕</button></div>
+        <div class="thought ${n.llmNote && n.thought === n.llmNote ? 'llm' : ''}">${esc(n.thought)}</div>
+        ${n.lastLine ? `<div class="muted" style="font-size:12px;margin-bottom:8px">Остання репліка: «${esc(n.lastLine)}»</div>` : ''}
+        <div class="meters">
+          ${meter('Ситість', 100 - n.hunger, n.hunger > 70 ? 'warn' : '')}
+          ${meter('Енергія', n.energy, n.energy < 20 ? 'warn' : '')}
+          ${meter('Спілкування', 100 - n.social)}
+          ${meter('Здоров\'я', n.health, n.health < 50 ? 'warn' : '')}
+        </div>
+        <h3>Натхнення: ${Math.round(n.insp)}</h3>${lr}
+        <p class="muted" style="font-size:12px;margin:4px 0 6px">Чого навчився мозок: очікуване натхнення від кожного заняття.</p>
+        <div class="meters">${vals}</div>
+        <h3>Знання</h3>
+        <p style="margin:0 0 6px;font-size:13px">${mats} матеріалів · ${laws} законів природи · ремесло ${n.skill.craft.toFixed(1)} · навчання ${n.skill.teach.toFixed(1)}</p>
+        <div class="tags">${designs}${ideas}</div>
+        ${n.inventions.length ? `<h3>Винайшов(ла)</h3><div class="tags">${n.inventions.map(x => `<span class="tag d">${esc(x)}</span>`).join('')}</div>` : ''}
+        ${friends ? `<h3>Друзі</h3><p style="margin:0;font-size:13px">${esc(friends)}</p>` : ''}
+        <h3>Історія</h3><ul class="hist">${n.history.slice(0, 8).map(h => `<li>${esc(h)}</li>`).join('') || '<li>Поки нічого особливого.</li>'}</ul>
+      </div>`;
+    } else $('person').innerHTML = '';
+    const list = sim.npcs.slice().sort((a, b) => b.insp - a.insp);
+    $('people').innerHTML = list.map(n => {
+      const act = n.task ? V.ACT_NAMES[n.task.type] || '' : '';
+      return `<li data-id="${n.id}" class="${n.id === R.sel ? 'sel' : ''}"><span class="dot" style="background:${n.color}"></span>
+        <span><span class="nm">${esc(n.name)}${n.ageTicks < sim.DAY * 2 ? ' · дитина' : ''}</span><span class="act">${esc(act)} — ${esc(n.thought)}</span></span>
+        <span class="score">${Math.round(n.insp)}<small>${n.know.size} знань</small></span></li>`;
+    }).join('');
+  }
+
+  const ERAS = ['Кам\'яна доба', 'Доба кераміки', 'Мідна доба', 'Бронзова доба', 'Залізна доба', 'Доба скла й заліза', 'Електрична доба'];
+  function renderDisc() {
+    const ei = ERAS.indexOf(sim.era);
+    let h = `<div class="timeline">${ERAS.map((e, i) => `<span class="${i <= ei ? 'on' : ''}">${esc(e.replace(' доба', '').replace('Доба ', ''))}</span>`).join('')}</div>`;
+    const devs = Object.values(sim.devices);
+    h += `<h2>Винаходи (${devs.length})</h2>`;
+    h += devs.length ? devs.map(d => {
+      const I = V.IDEAS[d.idea];
+      const parts = d.parts.map((id, i) => `${V.SLOT[I.slots[i]].name}: ${M[id].name}`).join(', ');
+      const v = d.extra && d.extra.volts ? ` · ${d.extra.volts.toFixed(2)} В` : '';
+      return `<div class="dev"><div class="top"><b>${esc(d.name)}</b><span class="q">якість ${d.quality}${v}</span><span class="muted">День ${d.day} · ${esc(npcName(d.inventor))}</span></div><div class="how">${esc(parts)} → ${esc(I.effect)}</div></div>`;
+    }).join('') : '<p class="muted">Ще нічого. Поселенці лише починають пробувати.</p>';
+    const known = [...sim.worldKnown].map(id => M[id]).filter(Boolean);
+    const derived = known.filter(m => !V.BASE_RESOURCES.includes(m.id) && !['meat', 'fish', 'hide', 'bone'].includes(m.id));
+    h += `<h2 style="margin-top:16px">Матеріали (${known.length})</h2><p class="muted" style="font-size:12px;margin:0 0 8px">Торкніться матеріалу, щоб побачити властивості. Помаранчева рамка — створений поселенцями.</p>`;
+    if (selMat && M[selMat]) {
+      const m = M[selMat];
+      h += `<div class="matinfo"><b>${esc(m.name)}</b>${m.real === false ? ' <span class="tag">вигаданий у долині</span>' : m.real ? ' <span class="tag i">справжній матеріал</span>' : ''}<br>${esc(V.propLine(m))}${m.desc ? '<br><span class="muted">' + esc(m.desc) + '</span>' : ''}${m.usefulFor && m.usefulFor.length ? `<br>Найкращий для: ${esc(m.usefulFor.join(', '))}` : ''}${m.inventor ? `<br><span class="muted">Створено: день ${m.day}, ${esc(npcName(m.inventor))}</span>` : ''}</div>`;
+    }
+    const kindName = { organic: 'органіка', mineral: 'мінерал', ore: 'руда', fuel: 'паливо', food: 'їжа', liquid: 'рідина', ceramic: 'кераміка', metal: 'метал', composite: 'композит' };
+    const card = m => `<button class="mat ${m.inventor ? 'new' : ''} ${m.real ? 'real' : ''}" data-mat="${m.id}"><span class="sw" style="background:${m.color}"></span>${esc(m.name)}<span class="k">${m.alloy ? 'сплав' : kindName[m.kind] || m.kind}${m.inventor ? (m.real ? ' · справжній' : ' · новий') : ''}</span></button>`;
+    h += `<h3>Отримані</h3><div class="mats">${derived.map(card).join('') || '<span class="muted">поки немає</span>'}</div>`;
+    h += `<h3>Природні</h3><div class="mats">${known.filter(m => !derived.includes(m)).map(card).join('')}</div>`;
+    const recent = sim.discoveries.slice(-12).reverse();
+    if (recent.length) h += `<h3>Останні відкриття</h3>` + recent.map(d => `<div class="dev"><div class="top"><b>${esc(d.name)}</b><span class="muted">День ${d.day} · ${esc(npcName(d.by))}</span></div><div class="how">${esc(d.how)}${d.why ? ' — ' + esc(d.why) : ''}</div></div>`).join('');
+    $('disc').innerHTML = h;
+  }
+
+  function renderBrain() {
+    $('llmStatus').textContent = (L.cfg.enabled ? '' : 'вимкнено · ') + L.state.status + (L.state.ok ? ` · відповідей: ${L.state.ok}` : '');
+    $('llmLog').innerHTML = L.state.log.slice(0, 10).map(e => `<li class="${e.ok ? '' : 'bad'}"><b>${esc(e.who)}</b>: ${esc(e.text || '(без думки)')}${e.ok ? '' : ' <span class="muted">— відповідь не підійшла, вирішили правила</span>'}</li>`).join('');
+    $('seedLbl').textContent = 'Світ №' + sim.seed;
+  }
+
+  renderPanel(true);
+  requestAnimationFrame(frame);
+  V.ui = { get sim() { return sim; } };
+})(window.V = window.V || {});
+
+</script>
+</body>
+</html>
