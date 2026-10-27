@@ -19,7 +19,7 @@
   const ACTS = ['gather', 'hunt', 'fish', 'experiment', 'teach', 'build', 'explore'];
   const msg = V.msg;
 
-  function Sim(seed) {
+  function Sim(seed, saved) {
     this.seed = seed;
     this.world = V.makeWorld(seed);
     this.rnd = this.world.rnd;
@@ -43,12 +43,58 @@
     this.houses = 0;
     this.era = 'stone';
     this.stats = { wolfKills: 0, hunts: 0, fish: 0, taught: 0, experiments: 0, births: 0 };
+    if (saved) { this.load(saved); return; }
     V.spawnAnimals(this);
     for (let i = 0; i < 8; i++) this.addNPC(null);
     this.log(msg('log.start'), 'era');
   }
   V.Sim = Sim;
   const P = Sim.prototype;
+
+  /* ---------- Збереження та відновлення ----------
+     Рельєф відтворюється з зерна (seed), тож зберігаємо лише те, що змінилося. */
+  const SAVE_VERSION = 1;
+  const NPC_SETS = ['know', 'failures'];
+  P.serialize = function () {
+    const w = this.world;
+    const tiles = { r: [], a: [], max: [], fish: [] };
+    for (const t of w.tiles) { tiles.r.push(t.r); tiles.a.push(t.a); tiles.max.push(t.max); tiles.fish.push(t.fish || 0); }
+    const npc = n => {
+      const o = {};
+      for (const k in n) {
+        if (k === 'task') continue;                       // поточну справу після завантаження обирають заново
+        o[k] = NPC_SETS.includes(k) ? [...n[k]] : n[k];
+      }
+      return o;
+    };
+    return {
+      v: SAVE_VERSION, seed: this.seed, rng: this.rnd.getState(), tick: this.tick, nextId: this.nextId,
+      tiles, npcs: this.npcs.map(npc),
+      dead: this.dead.map(n => ({ id: n.id, name: n.name, color: n.color, history: n.history, inventions: n.inventions, insp: n.insp, know: [...n.know].slice(0, 0), failures: [], val: n.val, skill: n.skill, friends: {}, thought: n.thought, hunger: 100, energy: 0, social: 0, health: 0, ageTicks: n.ageTicks, problems: {}, suggest: [] })),
+      animals: this.animals.filter(a => a.alive).map(a => ({ id: a.id, type: a.type, x: a.x, y: a.y, dir: a.dir, hunger: a.hunger, alive: true })),
+      store: this.store, devices: this.devices, structures: this.structures,
+      worldKnown: [...this.worldKnown], chronicle: this.chronicle, discoveries: this.discoveries,
+      genCount: this.genCount, attempts: this.attempts, triedPairs: [...this.triedPairs], ideasSeen: [...this.ideasSeen],
+      pen: this.pen, houses: this.houses, era: this.era, stats: this.stats, adviceSeen: this.adviceSeen || {},
+      mats: Object.values(M).filter(m => /^g\d+$/.test(m.id)),
+    };
+  };
+  P.load = function (d) {
+    if (!d || d.v !== SAVE_VERSION) throw new Error('unsupported save');
+    const w = this.world;
+    w.tiles.forEach((t, i) => { t.r = d.tiles.r[i]; t.a = d.tiles.a[i]; t.max = d.tiles.max[i]; t.fish = d.tiles.fish[i]; });
+    this.rnd.setState(d.rng);
+    for (const id of Object.keys(M)) if (/^g\d+$/.test(id)) delete M[id];
+    for (const m of d.mats || []) M[m.id] = m;
+    const npc = o => { const n = Object.assign({}, o, { task: null }); for (const k of NPC_SETS) n[k] = new Set(o[k] || []); return n; };
+    Object.assign(this, {
+      tick: d.tick, nextId: d.nextId, npcs: d.npcs.map(npc), dead: d.dead.map(npc), animals: d.animals,
+      store: d.store, devices: d.devices, structures: d.structures, worldKnown: new Set(d.worldKnown),
+      chronicle: d.chronicle, discoveries: d.discoveries, genCount: d.genCount, attempts: d.attempts,
+      triedPairs: new Set(d.triedPairs), ideasSeen: new Set(d.ideasSeen), pen: d.pen, houses: d.houses,
+      era: d.era, stats: d.stats, adviceSeen: d.adviceSeen,
+    });
+  };
 
   P.day = function () { return Math.floor(this.tick / this.DAY) + 1; };
   P.phase = function () { return (this.tick % this.DAY) / this.DAY; };

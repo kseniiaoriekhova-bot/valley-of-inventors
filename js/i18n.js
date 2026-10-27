@@ -115,6 +115,15 @@
   };
   V.kindName = k => KIND[lang][k] || k;
 
+  /* Час у форматі мови: «завтра о 01:00» / «morgen um 01:00» */
+  V.fmtTime = function (ms) {
+    if (!ms) return '';
+    const d = new Date(ms), now = new Date();
+    const hm = d.toLocaleTimeString(lang === 'de' ? 'de-DE' : 'uk-UA', { hour: '2-digit', minute: '2-digit' });
+    const tomorrow = d.toDateString() !== now.toDateString();
+    return lang === 'de' ? (tomorrow ? `morgen um ${hm}` : `um ${hm}`) : (tomorrow ? `завтра о ${hm}` : `о ${hm}`);
+  };
+
   /* Назва матеріалу з урахуванням мови */
   V.mn = function (id) {
     const M = V.MATERIALS, m = M && M[id];
@@ -267,6 +276,12 @@
     'st.noconn': 'немає з\'єднання (див. «Як під\'єднати»)', 'st.checking': 'перевіряю…', 'st.needKey': 'вставте ключ API',
     'st.badKey': 'ключ не прийнято', 'st.okOR': 'з\'єднано з OpenRouter', 'st.ok': 'з\'єднано', 'st.okNoModels': 'з\'єднано, але моделей немає',
     'st.missing': r => `моделі «${r.model}» немає, доступні: ${r.list}`,
+    'st.limit': r => `денний ліміт вичерпано, відновиться ${V.fmtTime(r.until)}`,
+    'log.llmDown': 'LLM-мозок не відповідає. Поселенці думають за правилами, поки модель не повернеться.',
+    'log.llmLimit': r => `Денний ліміт моделі вичерпано. До ${V.fmtTime(r.until).replace(/^завтра о |^о /, '')} поселенці думають за правилами.`,
+    'log.llmUp': 'LLM-мозок знову працює.',
+    'log.llmPaused': 'LLM-мозок поставлено на паузу. Поселенці думають за правилами.',
+    'log.llmResumed': 'LLM-мозок знову увімкнено.',
     'dlg.p.hotter': r => `Хочу щось отримати з такого: ${r.ms}, але жару замало — лише ${r.t}°C.`,
     'dlg.p.air': r => `${cap(r.ms)} у вогні просто згорає. Як бути?`,
     'dlg.s.know': r => r.kt === 'd' ? `Я вмію робити «${r.kname}» — це допоможе. Покажу!` : r.kt === 'm' ? `Візьми як паливо таке: ${r.kname}. Горить значно гарячіше!` : `Деревину треба палити без повітря — вийде вугілля.`,
@@ -391,6 +406,12 @@
     'st.noconn': 'keine Verbindung (siehe „So verbindest du …“)', 'st.checking': 'prüfe …', 'st.needKey': 'API-Schlüssel einfügen',
     'st.badKey': 'Schlüssel abgelehnt', 'st.okOR': 'mit OpenRouter verbunden', 'st.ok': 'verbunden', 'st.okNoModels': 'verbunden, aber keine Modelle',
     'st.missing': r => `Modell „${r.model}“ fehlt, verfügbar: ${r.list}`,
+    'st.limit': r => `Tageslimit erreicht, wieder verfügbar ${V.fmtTime(r.until)}`,
+    'log.llmDown': 'Das LLM-Gehirn antwortet nicht. Die Siedler denken nach Regeln, bis das Modell zurück ist.',
+    'log.llmLimit': r => `Das Tageslimit des Modells ist erreicht. Bis ${V.fmtTime(r.until).replace(/^morgen um |^um /, '')} Uhr denken die Siedler nach Regeln.`,
+    'log.llmUp': 'Das LLM-Gehirn funktioniert wieder.',
+    'log.llmPaused': 'Das LLM-Gehirn ist pausiert. Die Siedler denken nach Regeln.',
+    'log.llmResumed': 'Das LLM-Gehirn ist wieder an.',
     'dlg.p.hotter': r => `Ich will etwas aus ${r.ms} gewinnen, aber die Glut reicht nicht — nur ${r.t} °C.`,
     'dlg.p.air': r => `${r.ms} verbrennt im Feuer einfach. Was tun?`,
     'dlg.s.know': r => r.kt === 'd' ? `Ich kann „${r.kname}“ bauen — das hilft. Ich zeig's dir!` : r.kt === 'm' ? `Nimm ${r.kname} als Brennstoff. Brennt viel heißer!` : `Holz muss ohne Luft brennen — dann wird Kohle daraus.`,
@@ -510,6 +531,15 @@
       'about.2': '<b>Ідеї</b> народжуються з проблем: «жару замало», «риба близько», «носити важко». Як саме втілити ідею, поселенці шукають самі.',
       'about.3': '<b>Натхнення</b>: нове знання +2, навчити іншого +4, новий матеріал +15, матеріал кращий за відомі +20, робочий винахід до +40, покращення +10, невдача +1, бонус автору, коли інші користуються винаходом. Поселенці частіше роблять те, що приносить натхнення.',
       'about.4': '<b>Нові матеріали</b>: якщо склад збігається з реальним (бронза, спекулум, сталь, саман…), матеріал отримує справжню назву; якщо ні — вигадану з поясненням і найближчим відомим аналогом.',
+      'tab.worlds': 'Світи', 'banner.close': 'Сховати',
+      'chip.off': 'LLM вимкнено', 'chip.paused': 'LLM на паузі', 'chip.ok': 'LLM працює', 'chip.idle': 'LLM готовий', 'chip.down': 'LLM не відповідає', 'chip.limit': 'LLM: ліміт вичерпано',
+      'llm.pauseBtn': 'Пауза моделі', 'llm.resumeBtn': 'Продовжити модель',
+      'w.current': 'Поточна цивілізація', 'w.name': 'Назва', 'w.save': 'Зберегти зараз', 'w.savedAt': 'Збережено',
+      'w.auto': 'Світ зберігається автоматично щохвилини та коли ви закриваєте сторінку. Наступного разу гра продовжиться з того самого місця.',
+      'w.new': 'Нова цивілізація', 'w.newNote': 'Поточну цивілізацію буде збережено — її можна відкрити пізніше.',
+      'w.list': 'Збережені цивілізації', 'w.open': 'Відкрити', 'w.del': 'Видалити', 'w.confirm': 'Точно видалити?', 'w.active': 'відкрита зараз',
+      'w.local': 'Збереження живуть у цьому браузері на цьому пристрої. На іншому пристрої їх не буде.',
+      'w.full': 'У браузері забракло місця для збереження. Видаліть стару цивілізацію.', 'w.civ': 'Цивілізація', 'w.pop': 'мешканців', 'w.failed': 'Не вдалося відкрити це збереження.',
       newWorld: 'Новий світ', worldNo: 'Світ №', mapLabel: 'Карта долини', speed: 'Швидкість',
       'note.cf': 'Модель працює на Cloudflare Workers AI цього сайту — ключ не потрібен. Якщо з\'єднання немає, гру відкрито не з Cloudflare.',
       'note.or': 'Вставте ключ з <a href="https://openrouter.ai/keys" target="_blank" rel="noopener">openrouter.ai/keys</a>. Модель <code>openrouter/free</code> сама обирає доступну безкоштовну модель. Гра має бути відкрита зі звичайного сайту, а не з Claude.',
@@ -553,6 +583,15 @@
       'about.2': '<b>Ideen</b> entstehen aus Problemen: „zu wenig Glut“, „die Fische sind nah“, „Tragen ist mühsam“. Wie man sie umsetzt, finden die Siedler selbst heraus.',
       'about.3': '<b>Inspiration</b>: neues Wissen +2, andere lehren +4, neuer Stoff +15, Stoff besser als alle bekannten +20, funktionierende Erfindung bis +40, Verbesserung +10, Fehlschlag +1, Bonus für den Erfinder, wenn andere die Erfindung nutzen. Siedler tun öfter, was Inspiration bringt.',
       'about.4': '<b>Neue Stoffe</b>: Stimmt die Zusammensetzung mit einem echten Werkstoff überein (Bronze, Speculum, Stahl, Strohlehm …), bekommt er den echten Namen; sonst einen erfundenen mit Erklärung und dem ähnlichsten bekannten Stoff.',
+      'tab.worlds': 'Welten', 'banner.close': 'Ausblenden',
+      'chip.off': 'LLM aus', 'chip.paused': 'LLM pausiert', 'chip.ok': 'LLM aktiv', 'chip.idle': 'LLM bereit', 'chip.down': 'LLM antwortet nicht', 'chip.limit': 'LLM: Limit erreicht',
+      'llm.pauseBtn': 'Modell pausieren', 'llm.resumeBtn': 'Modell fortsetzen',
+      'w.current': 'Aktuelle Zivilisation', 'w.name': 'Name', 'w.save': 'Jetzt speichern', 'w.savedAt': 'Gespeichert',
+      'w.auto': 'Die Welt wird jede Minute und beim Schließen der Seite automatisch gespeichert. Beim nächsten Mal geht es genau dort weiter.',
+      'w.new': 'Neue Zivilisation', 'w.newNote': 'Die aktuelle Zivilisation wird gespeichert — du kannst sie später wieder öffnen.',
+      'w.list': 'Gespeicherte Zivilisationen', 'w.open': 'Öffnen', 'w.del': 'Löschen', 'w.confirm': 'Wirklich löschen?', 'w.active': 'gerade geöffnet',
+      'w.local': 'Spielstände bleiben in diesem Browser auf diesem Gerät. Auf anderen Geräten gibt es sie nicht.',
+      'w.full': 'Im Browser ist kein Platz mehr zum Speichern. Lösche eine alte Zivilisation.', 'w.civ': 'Zivilisation', 'w.pop': 'Bewohner', 'w.failed': 'Dieser Spielstand ließ sich nicht öffnen.',
       newWorld: 'Neue Welt', worldNo: 'Welt Nr. ', mapLabel: 'Karte des Tals', speed: 'Tempo',
       'note.cf': 'Das Modell läuft auf Cloudflare Workers AI dieser Seite — kein Schlüssel nötig. Ohne Verbindung ist das Spiel nicht über Cloudflare geöffnet.',
       'note.or': 'Füge den Schlüssel von <a href="https://openrouter.ai/keys" target="_blank" rel="noopener">openrouter.ai/keys</a> ein. Das Modell <code>openrouter/free</code> wählt selbst ein verfügbares kostenloses Modell. Das Spiel muss von einer normalen Webseite geöffnet sein, nicht aus Claude.',

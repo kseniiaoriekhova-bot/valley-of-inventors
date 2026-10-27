@@ -26,6 +26,7 @@
     <button class="ctl spd" data-s="15">15×</button>
     <button class="ctl spd" data-s="50">50×</button>
   </div>
+  <button class="llmchip" id="llmChip" data-mode="off"><span class="ld" aria-hidden="true"></span><span id="llmChipText"></span></button>
   <div class="langs" role="group" aria-label="Мова / Sprache">
     <button class="ctl lang" data-lang="uk" lang="uk">UK</button>
     <button class="ctl lang" data-lang="de" lang="de">DE</button>
@@ -33,6 +34,14 @@
 </header>
 
 <section class="stats" id="stats"></section>
+
+<div class="banner" id="llmBanner" role="status" hidden>
+  <span class="bt" id="llmBannerText"></span>
+  <span class="bb">
+    <button class="btn small" id="llmBannerPause"></button>
+    <button class="iconbtn" id="llmBannerClose" data-i18n-aria="banner.close">✕</button>
+  </span>
+</div>
 
 <main class="layout">
   <div class="stage">
@@ -60,6 +69,7 @@
       <button class="tab" data-tab="people" role="tab" data-i18n="tab.people"></button>
       <button class="tab" data-tab="disc" role="tab" data-i18n="tab.disc"></button>
       <button class="tab" data-tab="brain" role="tab" data-i18n="tab.brain"></button>
+      <button class="tab" data-tab="worlds" role="tab" data-i18n="tab.worlds"></button>
     </nav>
 
     <div class="pane on" id="pane-chron">
@@ -94,7 +104,10 @@
           <button class="preset" data-preset="lmstudio"><b>LM Studio</b><span data-i18n="p.lm"></span></button>
         </div>
         <p class="presetnote" id="presetNote" hidden></p>
-        <label class="row switch"><input type="checkbox" id="llmOn"> <span data-i18n="llm.on"></span></label>
+        <div class="row gap">
+          <label class="row switch"><input type="checkbox" id="llmOn"> <span data-i18n="llm.on"></span></label>
+          <button class="btn ghost" id="llmPause"></button>
+        </div>
         <div class="grid2">
           <label for="llmProv" data-i18n="llm.server"></label>
           <select id="llmProv"><option value="ollama">Ollama</option><option value="openai" data-i18n="llm.compat"></option></select>
@@ -128,7 +141,31 @@
           <li data-i18n-html="about.3"></li>
           <li data-i18n-html="about.4"></li>
         </ul>
-        <div class="row gap"><button class="btn" id="newWorld" data-i18n="newWorld"></button><span class="muted" id="seedLbl"></span></div>
+      </section>
+    </div>
+
+    <div class="pane" id="pane-worlds">
+      <section class="card">
+        <h2 data-i18n="w.current"></h2>
+        <div class="grid2">
+          <label for="civName" data-i18n="w.name"></label>
+          <input id="civName" type="text" maxlength="40" spellcheck="false">
+        </div>
+        <p class="muted" id="civInfo"></p>
+        <div class="row gap">
+          <button class="btn" id="saveNow" data-i18n="w.save"></button>
+          <span class="status" id="saveStatus"></span>
+        </div>
+        <p class="muted" data-i18n="w.auto"></p>
+      </section>
+      <section class="card">
+        <div class="row gap"><button class="btn" id="newWorld" data-i18n="w.new"></button></div>
+        <p class="muted" data-i18n="w.newNote"></p>
+      </section>
+      <section class="card">
+        <h2 data-i18n="w.list"></h2>
+        <ul class="civs" id="civList"></ul>
+        <p class="muted" data-i18n="w.local"></p>
       </section>
     </div>
   </aside>

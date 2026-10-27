@@ -8,8 +8,57 @@
   const u = V.u;
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
-  let seed = Math.floor(Math.random() * 1e6);
-  let sim = new V.Sim(seed);
+  /* ---------- збереження цивілізацій (localStorage цього браузера) ---------- */
+  const store = {
+    get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+    set(k, v) { localStorage.setItem(k, v); },            // помилку (немає місця) обробляє той, хто викликав
+    del(k) { try { localStorage.removeItem(k); } catch (e) { /* ок */ } },
+  };
+  let civs = [];
+  try { civs = JSON.parse(store.get('valley.worlds') || '[]') || []; } catch (e) { civs = []; }
+  const saveIndex = () => { try { store.set('valley.worlds', JSON.stringify(civs)); } catch (e) { /* ок */ } };
+  let civ = null, lastSaved = 0, saveError = false, delArm = null;
+
+  function newCivEntry() {
+    const num = civs.reduce((m, c) => Math.max(m, c.num || 0), 0) + 1;
+    const entry = { id: 'c' + Date.now().toString(36) + Math.floor(Math.random() * 1e4).toString(36), num, name: '', seed: Math.floor(Math.random() * 1e6) };
+    civs.push(entry);
+    return entry;
+  }
+  const civName = c => c.name || `${u('w.civ')} ${c.num}`;
+  function openSaved(entry) {
+    const raw = store.get('valley.world.' + entry.id);
+    if (!raw) return null;
+    try { return new V.Sim(entry.seed, JSON.parse(raw)); } catch (e) { return null; }
+  }
+  // відкрити останню цивілізацію або почати першу
+  let sim = null;
+  const activeId = store.get('valley.active');
+  civ = civs.find(c => c.id === activeId) || null;
+  if (civ) sim = openSaved(civ);
+  if (!sim) { if (!civ) civ = newCivEntry(); for (const id of Object.keys(V.MATERIALS)) if (/^g\d+$/.test(id)) delete V.MATERIALS[id]; sim = new V.Sim(civ.seed); }
+  try { store.set('valley.active', civ.id); } catch (e) { /* ок */ }
+  saveIndex();
+
+  function saveNow() {
+    try {
+      store.set('valley.world.' + civ.id, JSON.stringify(sim.serialize()));
+      Object.assign(civ, { seed: sim.seed, day: sim.day(), era: sim.era, pop: sim.npcs.length, updated: Date.now() });
+      saveIndex(); store.set('valley.active', civ.id);
+      lastSaved = Date.now(); saveError = false;
+    } catch (e) { saveError = true; }
+    if (tab === 'worlds') renderWorlds();
+  }
+  function switchTo(newSim, entry) {
+    sim = newSim; civ = entry;
+    R.setSim(sim); R.sel = null; selMat = null; follow = false;
+    try { store.set('valley.active', civ.id); } catch (e) { /* ок */ }
+    lastChron = ''; renderStrip(true); renderPanel(true); header(true);
+  }
+  setInterval(() => { if (!paused || Date.now() - lastSaved > 60000) saveNow(); }, 60000);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') saveNow(); });
+  window.addEventListener('pagehide', saveNow);
+
   const canvas = $('world');
   const R = new V.Renderer(canvas, sim);
   let speed = 1, paused = false, acc = 0, last = performance.now();
@@ -121,10 +170,27 @@
   $('zoomOut').addEventListener('click', () => { setZoom(R.zoom - 1); renderPanel(true); });
 
   $('newWorld').addEventListener('click', () => {
-    seed = Math.floor(Math.random() * 1e6);
+    saveNow();                                                     // поточну цивілізацію зберігаємо
+    const entry = newCivEntry();
     for (const id of Object.keys(M)) if (/^g\d+$/.test(id)) delete M[id];   // матеріали попереднього світу
-    sim = new V.Sim(seed); R.setSim(sim); R.sel = null; selMat = null; follow = false;
-    lastChron = ''; renderStrip(true); renderPanel(true);
+    switchTo(new V.Sim(entry.seed), entry);
+    saveNow();
+  });
+  $('saveNow').addEventListener('click', saveNow);
+  $('civName').addEventListener('change', e => { civ.name = e.target.value.trim(); saveIndex(); renderWorlds(); });
+  $('civList').addEventListener('click', e => {
+    const b = e.target.closest('button[data-act]'); if (!b) return;
+    const entry = civs.find(c => c.id === b.dataset.id); if (!entry) return;
+    if (b.dataset.act === 'open') {
+      saveNow();
+      const s = openSaved(entry);
+      if (!s) { $('saveStatus').textContent = u('w.failed'); return; }
+      switchTo(s, entry);
+    } else if (b.dataset.act === 'del') {
+      if (delArm !== entry.id) { delArm = entry.id; renderWorlds(); return; }
+      store.del('valley.world.' + entry.id); civs = civs.filter(c => c !== entry); saveIndex(); delArm = null;
+    }
+    renderWorlds();
   });
 
   let rsz; window.addEventListener('resize', () => { clearTimeout(rsz); rsz = setTimeout(() => R.resize(), 120); });
@@ -145,7 +211,7 @@
     if (b.dataset.preset === 'openrouter' && !L.cfg.apiKey) $('llmKey').focus();
     renderPanel(true);
   }));
-  $('llmOn').addEventListener('change', e => L.set('enabled', e.target.checked));
+  $('llmOn').addEventListener('change', e => { L.set('enabled', e.target.checked); bannerHidden = ''; renderLLMState(); });
   $('llmProv').addEventListener('change', e => {
     L.set('provider', e.target.value); L.set('preset', '');
     document.querySelectorAll('.preset').forEach(b => b.classList.remove('on'));
@@ -163,6 +229,39 @@
     if (r.ok && !r.skipCheck && r.models.length && !r.models.includes(L.cfg.model)) L.state.status = ['st.missing', { model: L.cfg.model, list: r.models.slice(0, 4).join(', ') }];
     renderPanel(true);
   });
+
+  /* ---------- стан LLM: індикатор, банер, пауза ---------- */
+  let bannerHidden = '';
+  function renderLLMState() {
+    const mode = L.mode();
+    const chip = $('llmChip');
+    chip.dataset.mode = mode;
+    $('llmChipText').textContent = u('chip.' + mode);
+    chip.title = mode === 'limit' ? V.T('st.limit', { until: L.state.until }) : '';
+    $('llmPause').hidden = !L.cfg.enabled;
+    $('llmPause').textContent = L.cfg.paused ? u('llm.resumeBtn') : u('llm.pauseBtn');
+    const show = (mode === 'down' || mode === 'limit') && bannerHidden !== mode;
+    $('llmBanner').hidden = !show;
+    if (show) {
+      $('llmBannerText').textContent = mode === 'limit' ? V.T('log.llmLimit', { until: L.state.until }) : V.T('log.llmDown');
+      $('llmBannerPause').textContent = u('llm.pauseBtn');
+    }
+  }
+  function togglePauseLLM() { L.setPaused(!L.cfg.paused); renderLLMState(); renderPanel(true); }
+  $('llmChip').addEventListener('click', () => {
+    if (!L.cfg.enabled) { document.querySelector('.tab[data-tab="brain"]').click(); return; }
+    togglePauseLLM();
+  });
+  $('llmPause').addEventListener('click', togglePauseLLM);
+  $('llmBannerPause').addEventListener('click', () => { L.setPaused(true); renderLLMState(); });
+  $('llmBannerClose').addEventListener('click', () => { bannerHidden = L.mode(); renderLLMState(); });
+  // події моделі потрапляють у хроніку поточної цивілізації
+  L.onChange = kind => {
+    const key = { down: 'log.llmDown', limit: 'log.llmLimit', up: 'log.llmUp', paused: 'log.llmPaused', resumed: 'log.llmResumed' }[kind];
+    if (key) sim.log(V.msg(key, kind === 'limit' ? { until: L.state.until } : {}), 'system');
+    if (kind === 'up' || kind === 'resumed') bannerHidden = '';
+    renderLLMState(); lastChron = ''; renderPanel(true);
+  };
 
   /* ---------- головний цикл ---------- */
   function frame(now) {
@@ -199,6 +298,7 @@
       `<span><b>${Math.round(insp)}</b>${u('stat.insp')}</span>` +
       `<span><b>${cnt('rabbit')}</b>${u('stat.rab')} · <b>${cnt('deer')}</b>${u('stat.deer')} · <b>${cnt('wolf')}</b>${u('stat.wolf')}</span>`;
     renderStrip(false);
+    renderLLMState();
     renderPanel(false);
   }
 
@@ -228,6 +328,7 @@
     if (tab === 'chron') renderChron(force);
     else if (tab === 'people') renderPeople();
     else if (tab === 'disc') renderDisc();
+    else if (tab === 'worlds') renderWorlds();
     else renderBrain();
   }
 
@@ -347,10 +448,25 @@
     $('disc').innerHTML = h;
   }
 
+  function renderWorlds() {
+    if (document.activeElement !== $('civName')) $('civName').value = civ.name || '';
+    $('civName').placeholder = civName(civ);
+    $('civInfo').textContent = `${u('day')} ${sim.day()} · ${V.eraName(sim.era)} · ${sim.npcs.length} ${u('w.pop')} · ${u('worldNo')}${sim.seed}`;
+    $('saveStatus').textContent = saveError ? u('w.full') : lastSaved ? `${u('w.savedAt')}: ${new Date(lastSaved).toLocaleTimeString(V.lang === 'de' ? 'de-DE' : 'uk-UA', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}` : '';
+    const list = civs.slice().sort((a, b) => (b.updated || 0) - (a.updated || 0));
+    $('civList').innerHTML = list.map(c => {
+      const on = c.id === civ.id;
+      const info = c.day ? `${u('day')} ${c.day} · ${V.eraName(c.era)} · ${c.pop} ${u('w.pop')}${c.updated ? ' · ' + new Date(c.updated).toLocaleString(V.lang === 'de' ? 'de-DE' : 'uk-UA', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : ''}` : '';
+      return `<li class="${on ? 'on' : ''}"><span class="cn">${esc(civName(c))}</span>
+        <span class="ci">${on ? u('w.active') + (info ? ' · ' : '') : ''}${esc(info)}</span>
+        <span class="ca">${on ? '' : `<button class="btn small" data-act="open" data-id="${c.id}">${u('w.open')}</button>
+          <button class="btn small ${delArm === c.id ? 'danger' : 'ghost'}" data-act="del" data-id="${c.id}">${delArm === c.id ? u('w.confirm') : u('w.del')}</button>`}</span></li>`;
+    }).join('');
+  }
+
   function renderBrain() {
     $('llmStatus').textContent = (L.cfg.enabled ? V.R(L.state.status) : u('llm.off')) + (L.state.ok ? ` · ${u('llm.answers')}: ${L.state.ok}` : '');
     $('llmLog').innerHTML = L.state.log.slice(0, 10).map(e => `<li class="${e.ok ? '' : 'bad'}"><b>${esc(V.nn(e.who))}</b>: ${esc(e.text || u('llm.noThought'))}${e.ok ? '' : ` <span class="muted">— ${u('llm.bad')}</span>`}</li>`).join('');
-    $('seedLbl').textContent = u('worldNo') + sim.seed;
   }
 
   setSpeed(1);

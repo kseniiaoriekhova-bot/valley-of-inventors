@@ -13,7 +13,8 @@
   let cfg = Object.assign({}, DEFAULTS);
   try { const s = JSON.parse(localStorage.getItem('valley.llm') || 'null'); if (s) cfg = Object.assign(cfg, s); } catch (e) { /* без сховища */ }
 
-  const state = { busy: false, last: 0, backoff: 0, ok: 0, fail: 0, lastError: '', latency: 0, status: ['st.off', {}], log: [] };
+  // health: '' (ще не перевіряли), 'ok', 'down' (не відповідає), 'limit' (вичерпано ліміт)
+  const state = { busy: false, last: 0, backoff: 0, ok: 0, fail: 0, fails: 0, health: '', until: 0, lastError: '', latency: 0, status: ['st.off', {}], log: [] };
 
   const PRESETS = {
     cloudflare: { provider: 'openai', url: '/api/v1', model: '@cf/meta/llama-3.1-8b-instruct-fp8-fast', cooldown: 3 },
@@ -25,8 +26,16 @@
   const LLM = V.LLM = {
     cfg, state,
     save() { try { localStorage.setItem('valley.llm', JSON.stringify(cfg)); } catch (e) { /* ок */ } },
-    set(k, v) { cfg[k] = v; LLM.save(); if (k === 'enabled') state.status = [v ? 'st.on' : 'st.off', {}]; },
-    ready() { return cfg.enabled && !state.busy && performance.now() > state.backoff && (performance.now() - state.last) / 1000 > cfg.cooldown; },
+    set(k, v) { cfg[k] = v; LLM.save(); if (k === 'enabled') { state.status = [v ? 'st.on' : 'st.off', {}]; state.health = ''; state.fails = 0; state.backoff = 0; } },
+    ready() { return cfg.enabled && !cfg.paused && !state.busy && performance.now() > state.backoff && (performance.now() - state.last) / 1000 > cfg.cooldown; },
+    /* Загальний стан для індикатора: off | paused | limit | down | ok | idle */
+    mode() {
+      if (!cfg.enabled) return 'off';
+      if (cfg.paused) return 'paused';
+      if (state.health === 'limit' || state.health === 'down') return state.health;
+      return state.health === 'ok' ? 'ok' : 'idle';
+    },
+    onChange: null,
     canPlan() { return cfg.plans && LLM.ready(); },
     canChat() { return cfg.chat && LLM.ready() && Math.random() < 0.35; },
   };
@@ -40,13 +49,24 @@
     for (const k of ['provider', 'url', 'model', 'cooldown']) cfg[k] = p[k];
     cfg.preset = id;
     cfg.apiKey = cfg.keys[id] || '';
-    state.backoff = 0;
+    state.backoff = 0; state.health = ''; state.fails = 0;
     LLM.save();
     return p;
   };
   // відносна адреса (/api/v1) — сервер, з якого відкрито гру (Cloudflare Worker)
   const absUrl = u => /^https?:/i.test(u) ? u : (typeof location !== 'undefined' ? location.origin : '') + u;
   const isOpenRouter = () => /openrouter\.ai/.test(cfg.url);
+  const isCloudflare = () => cfg.preset === 'cloudflare' || /^\/api\//.test(cfg.url) || /workers\.dev/.test(cfg.url);
+  const nextUtcMidnight = () => { const d = new Date(); return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + 1); };
+  function setHealth(h, until) {
+    const prev = state.health;
+    state.health = h; if (until) state.until = until;
+    if (prev === h) return;
+    if (h === 'ok' && (prev === 'down' || prev === 'limit')) notify('up');
+    if (h === 'down' || h === 'limit') notify(h);
+  }
+  function notify(kind) { try { if (LLM.onChange) LLM.onChange(kind); } catch (e) { /* ок */ } }
+  LLM.setPaused = function (p) { cfg.paused = !!p; LLM.save(); notify(p ? 'paused' : 'resumed'); };
 
   function endpoint() {
     const base = absUrl(cfg.url).replace(/\/+$/, '');
@@ -66,18 +86,36 @@
         ? { model: cfg.model, messages, stream: false, format: 'json', options: { temperature: 0.8, num_predict: maxTokens } }
         : { model: cfg.model, messages, temperature: 0.8, max_tokens: maxTokens };
       const res = await fetch(endpoint(), { method: 'POST', headers, body: JSON.stringify(body), signal: ctrl.signal });
-      if (res.status === 429) { state.backoff = performance.now() + 45000; throw new Error('429 (limit, 45 s)'); }
+      if (res.status === 429) {
+        const txt = (await res.text()).slice(0, 300);
+        // денний ліміт (Cloudflare: «neurons», «daily allocation») — до півночі UTC; інакше коротка пауза
+        if (/neuron|daily|allocation|quota|per day|free tier/i.test(txt)) {
+          const until = isCloudflare() ? nextUtcMidnight() : Date.now() + 10 * 60000;
+          setHealth('limit', until);
+          state.backoff = performance.now() + (until - Date.now());
+          throw new Error('daily limit');
+        }
+        state.backoff = performance.now() + 45000;
+        throw new Error('429 (limit, 45 s)');
+      }
       if (res.status === 401) throw new Error('401 (API key)');
       if (!res.ok) throw new Error('HTTP ' + res.status + ' ' + (await res.text()).slice(0, 120));
       const data = await res.json();
       const text = cfg.provider === 'ollama' ? data.message && data.message.content : data.choices && data.choices[0].message.content;
-      state.ok++; state.latency = Math.round(performance.now() - t0); state.status = ['st.works', { ms: state.latency }];
+      state.ok++; state.fails = 0; state.latency = Math.round(performance.now() - t0); state.status = ['st.works', { ms: state.latency }];
+      setHealth('ok');
       return parseJSON(text || '');
     } catch (e) {
-      state.fail++;
-      state.lastError = e.name === 'AbortError' ? 'тайм-аут' : (e.message || String(e));
+      state.fail++; state.fails++;
+      state.lastError = e.name === 'AbortError' ? 'timeout' : (e.message || String(e));
       state.status = ['st.err', { e: state.lastError }];
       if (/Failed to fetch|NetworkError|Load failed/i.test(state.lastError)) state.status = ['st.noconn', {}];
+      if (state.health === 'limit') state.status = ['st.limit', { until: state.until }];
+      else if (state.fails >= 2) {
+        // двічі поспіль без відповіді — вважаємо, що модель недоступна; пробуємо знову за хвилину
+        setHealth('down');
+        state.backoff = Math.max(state.backoff, performance.now() + 60000);
+      }
       return null;
     } finally { clearTimeout(timer); state.busy = false; state.last = performance.now(); }
   }
