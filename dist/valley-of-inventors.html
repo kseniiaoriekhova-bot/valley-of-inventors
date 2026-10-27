@@ -161,6 +161,13 @@ h3 { font-size: 13px; margin: 14px 0 6px; color: var(--muted); font-weight: 500;
 .matinfo { margin: 10px 0; padding: 10px; border-radius: 8px; background: var(--bg); border: 1px solid var(--line); font-size: 13px; }
 
 /* мозок */
+.presets { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin: 10px 0; }
+.preset { border: 1px solid var(--line); background: var(--bg); border-radius: 8px; padding: 8px; text-align: left; display: grid; gap: 2px; min-width: 0; }
+.preset b { font-weight: 600; font-size: 13px; }
+.preset span { font-size: 11px; color: var(--muted); line-height: 1.3; }
+.preset.on { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.presetnote { font-size: 12px; margin: 0 0 8px; padding: 8px 10px; border-radius: 8px; background: color-mix(in srgb, var(--accent) 12%, transparent); }
+.presetnote a, .steps a { color: inherit; }
 .grid2 { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px 10px; align-items: center; margin: 10px 0; font-size: 13px; }
 .grid2 input, .grid2 select { width: 100%; min-width: 0; border: 1px solid var(--line); background: var(--bg); border-radius: 6px; padding: 6px 8px; }
 .row { display: flex; align-items: center; gap: 8px; margin: 6px 0; font-size: 13px; }
@@ -251,6 +258,12 @@ code { font: 12px var(--mono); background: var(--soft); padding: 1px 5px; border
       <section class="card">
         <h2>LLM-мозок</h2>
         <p class="muted">Без LLM поселенці думають за правилами і вчаться на заохоченнях. З LLM безкоштовна відкрита модель вигадує їхні експерименти та розмови, а рушій фізики перевіряє, чи це справді працює.</p>
+        <div class="presets" role="group" aria-label="Готові налаштування">
+          <button class="preset" data-preset="openrouter"><b>OpenRouter</b><span>хмара, працює з телефона</span></button>
+          <button class="preset" data-preset="ollama"><b>Ollama</b><span>на твоєму комп'ютері</span></button>
+          <button class="preset" data-preset="lmstudio"><b>LM Studio</b><span>на твоєму комп'ютері</span></button>
+        </div>
+        <p class="presetnote" id="presetNote" hidden></p>
         <label class="row switch"><input type="checkbox" id="llmOn"> <span>Під'єднати модель</span></label>
         <div class="grid2">
           <label for="llmProv">Сервер</label>
@@ -269,13 +282,19 @@ code { font: 12px var(--mono); background: var(--soft); padding: 1px 5px; border
         <ol class="llmlog" id="llmLog"></ol>
       </section>
       <section class="card">
-        <h2>Як під'єднати безкоштовну модель</h2>
+        <h2>З телефона: OpenRouter</h2>
+        <ol class="steps">
+          <li>Зареєструйтеся на <a href="https://openrouter.ai/keys" target="_blank" rel="noopener">openrouter.ai/keys</a> і створіть ключ (безкоштовні моделі не потребують оплати, але мають ліміти запитів).</li>
+          <li>Відкрийте гру не з Claude, а зі звичайного сайту, наприклад GitHub Pages вашого репозиторію.</li>
+          <li>Натисніть угорі «OpenRouter», вставте ключ і натисніть «Перевірити з'єднання». Модель <code>openrouter/free</code> сама обирає доступну безкоштовну модель.</li>
+        </ol>
+        <h2 style="margin-top:14px">З комп'ютера: Ollama</h2>
         <ol class="steps">
           <li>Встановіть <b>Ollama</b> (ollama.com) і завантажте модель: <code>ollama pull qwen2.5:3b</code> (або <code>llama3.2:3b</code>, <code>gemma2:2b</code>; на сильнішому ПК — <code>qwen2.5:7b</code>).</li>
           <li>Дозвольте сторінці звертатися до Ollama: <code>OLLAMA_ORIGINS="*" ollama serve</code> (Windows PowerShell: <code>$env:OLLAMA_ORIGINS="*"; ollama serve</code>).</li>
-          <li>Відкрийте гру з файлу <code>index.html</code> із репозиторію у себе на комп'ютері, увімкніть перемикач угорі й натисніть «Перевірити з'єднання».</li>
+          <li>Відкрийте гру з файлу <code>index.html</code> із репозиторію у себе на комп'ютері, натисніть угорі «Ollama» й «Перевірити з'єднання».</li>
         </ol>
-        <p class="muted">У веб-версії гри, відкритій із Claude, з'єднання зі сторонніми серверами заблоковані, тому там працює лише мозок на правилах.</p>
+        <p class="muted">У веб-версії гри, відкритій із Claude, з'єднання зі сторонніми серверами заблоковані, тому там працює лише мозок на правилах. Ключ API зберігається лише у вашому браузері.</p>
       </section>
       <section class="card">
         <h2>Як це влаштовано</h2>
@@ -1739,17 +1758,37 @@ code { font: 12px var(--mono); background: var(--soft); padding: 1px 5px; border
   let cfg = Object.assign({}, DEFAULTS);
   try { const s = JSON.parse(localStorage.getItem('valley.llm') || 'null'); if (s) cfg = Object.assign(cfg, s); } catch (e) { /* без сховища */ }
 
-  const state = { busy: false, last: 0, ok: 0, fail: 0, lastError: '', latency: 0, status: 'вимкнено', log: [] };
+  const state = { busy: false, last: 0, backoff: 0, ok: 0, fail: 0, lastError: '', latency: 0, status: 'вимкнено', log: [] };
+
+  const PRESETS = {
+    openrouter: { provider: 'openai', url: 'https://openrouter.ai/api/v1', model: 'openrouter/free', cooldown: 6, note: 'Вставте ключ з <a href="https://openrouter.ai/keys" target="_blank" rel="noopener">openrouter.ai/keys</a>. Модель <code>openrouter/free</code> сама обирає доступну безкоштовну модель. Гра має бути відкрита зі звичайного сайту, а не з Claude.' },
+    ollama: { provider: 'ollama', url: 'http://localhost:11434', model: 'qwen2.5:3b', cooldown: 1.5, note: 'Запустіть <code>OLLAMA_ORIGINS="*" ollama serve</code> і завантажте модель: <code>ollama pull qwen2.5:3b</code>.' },
+    lmstudio: { provider: 'openai', url: 'http://localhost:1234/v1', model: '', cooldown: 1.5, note: 'У LM Studio завантажте модель і ввімкніть локальний сервер (Developer → Start Server, з дозволом CORS). Потім натисніть «Перевірити з\'єднання» і виберіть модель зі списку.' },
+  };
 
   const LLM = V.LLM = {
     cfg, state,
     save() { try { localStorage.setItem('valley.llm', JSON.stringify(cfg)); } catch (e) { /* ок */ } },
     set(k, v) { cfg[k] = v; LLM.save(); if (k === 'enabled') state.status = v ? 'увімкнено' : 'вимкнено'; },
-    ready() { return cfg.enabled && !state.busy && (performance.now() - state.last) / 1000 > cfg.cooldown; },
+    ready() { return cfg.enabled && !state.busy && performance.now() > state.backoff && (performance.now() - state.last) / 1000 > cfg.cooldown; },
     canPlan() { return cfg.plans && LLM.ready(); },
     canChat() { return cfg.chat && LLM.ready() && Math.random() < 0.35; },
   };
   state.status = cfg.enabled ? 'увімкнено' : 'вимкнено';
+
+  LLM.PRESETS = PRESETS;
+  LLM.applyPreset = function (id) {
+    const p = PRESETS[id]; if (!p) return null;
+    cfg.keys = cfg.keys || {};
+    if (cfg.preset) cfg.keys[cfg.preset] = cfg.apiKey;   // ключ кожного сервісу зберігається окремо
+    for (const k of ['provider', 'url', 'model', 'cooldown']) cfg[k] = p[k];
+    cfg.preset = id;
+    cfg.apiKey = cfg.keys[id] || '';
+    state.backoff = 0;
+    LLM.save();
+    return p;
+  };
+  const isOpenRouter = () => /openrouter\.ai/.test(cfg.url);
 
   function endpoint() {
     const base = cfg.url.replace(/\/+$/, '');
@@ -1764,10 +1803,13 @@ code { font: 12px var(--mono); background: var(--soft); padding: 1px 5px; border
     try {
       const headers = { 'Content-Type': 'application/json' };
       if (cfg.apiKey) headers.Authorization = 'Bearer ' + cfg.apiKey;
+      if (isOpenRouter()) headers['X-Title'] = 'Valley of Inventors';
       const body = cfg.provider === 'ollama'
         ? { model: cfg.model, messages, stream: false, format: 'json', options: { temperature: 0.8, num_predict: maxTokens } }
         : { model: cfg.model, messages, temperature: 0.8, max_tokens: maxTokens };
       const res = await fetch(endpoint(), { method: 'POST', headers, body: JSON.stringify(body), signal: ctrl.signal });
+      if (res.status === 429) { state.backoff = performance.now() + 45000; throw new Error('ліміт запитів, пауза 45 с'); }
+      if (res.status === 401) throw new Error('невірний або відсутній ключ API');
       if (!res.ok) throw new Error('HTTP ' + res.status + ' ' + (await res.text()).slice(0, 120));
       const data = await res.json();
       const text = cfg.provider === 'ollama' ? data.message && data.message.content : data.choices && data.choices[0].message.content;
@@ -1793,6 +1835,14 @@ code { font: 12px var(--mono); background: var(--soft); padding: 1px 5px; border
     const base = cfg.url.replace(/\/+$/, '');
     try {
       const headers = cfg.apiKey ? { Authorization: 'Bearer ' + cfg.apiKey } : {};
+      if (isOpenRouter()) {
+        if (!cfg.apiKey) { state.status = 'вставте ключ API'; return { ok: false, error: 'немає ключа' }; }
+        const k = await fetch(base + '/key', { headers });
+        if (k.status === 401) { state.status = 'ключ не прийнято'; return { ok: false, error: '401' }; }
+        if (!k.ok) throw new Error('HTTP ' + k.status);
+        state.status = 'з\'єднано з OpenRouter';
+        return { ok: true, models: [cfg.model], skipCheck: true };
+      }
       const url = cfg.provider === 'ollama' ? base + '/api/tags' : (base.endsWith('/v1') ? base : base + '/v1') + '/models';
       const r = await fetch(url, { headers });
       if (!r.ok) throw new Error('HTTP ' + r.status);
@@ -2190,11 +2240,27 @@ D) композит (matrix + filler, f = частка наповнювача 0.
 
   /* ---------- LLM-налаштування ---------- */
   const L = V.LLM;
+  function syncLLMForm() {
+    $('llmOn').checked = L.cfg.enabled; $('llmProv').value = L.cfg.provider; $('llmUrl').value = L.cfg.url;
+    $('llmModel').value = L.cfg.model; $('llmKey').value = L.cfg.apiKey;
+    document.querySelectorAll('.preset').forEach(b => b.classList.toggle('on', b.dataset.preset === L.cfg.preset));
+    $('llmKey').placeholder = L.cfg.provider === 'ollama' ? 'не потрібен для Ollama' : L.cfg.preset === 'openrouter' ? 'sk-or-…' : 'якщо сервер його вимагає';
+  }
+  document.querySelectorAll('.preset').forEach(b => b.addEventListener('click', () => {
+    const p = L.applyPreset(b.dataset.preset);
+    L.set('enabled', true);
+    syncLLMForm();
+    $('presetNote').innerHTML = p.note; $('presetNote').hidden = false;
+    if (b.dataset.preset === 'openrouter' && !L.cfg.apiKey) $('llmKey').focus();
+    renderPanel(true);
+  }));
   $('llmOn').checked = L.cfg.enabled; $('llmProv').value = L.cfg.provider; $('llmUrl').value = L.cfg.url;
   $('llmModel').value = L.cfg.model; $('llmKey').value = L.cfg.apiKey; $('llmPlans').checked = L.cfg.plans; $('llmChat').checked = L.cfg.chat;
+  syncLLMForm();
   $('llmOn').addEventListener('change', e => L.set('enabled', e.target.checked));
   $('llmProv').addEventListener('change', e => {
-    L.set('provider', e.target.value);
+    L.set('provider', e.target.value); L.set('preset', '');
+    document.querySelectorAll('.preset').forEach(b => b.classList.remove('on'));
     if (e.target.value === 'ollama' && /1234/.test($('llmUrl').value)) { $('llmUrl').value = 'http://localhost:11434'; L.set('url', $('llmUrl').value); }
     if (e.target.value === 'openai' && /11434/.test($('llmUrl').value)) { $('llmUrl').value = 'http://localhost:1234/v1'; L.set('url', $('llmUrl').value); }
   });
@@ -2206,7 +2272,7 @@ D) композит (matrix + filler, f = частка наповнювача 0.
   $('llmTest').addEventListener('click', async () => {
     const r = await L.test();
     if (r.ok) $('llmModels').innerHTML = r.models.map(m => `<option value="${esc(m)}">`).join('');
-    if (r.ok && r.models.length && !r.models.includes(L.cfg.model)) L.state.status += ` · моделі «${L.cfg.model}» немає, доступні: ${r.models.slice(0, 4).join(', ')}`;
+    if (r.ok && !r.skipCheck && r.models.length && !r.models.includes(L.cfg.model)) L.state.status += ` · моделі «${L.cfg.model}» немає, доступні: ${r.models.slice(0, 4).join(', ')}`;
     renderPanel(true);
   });
 

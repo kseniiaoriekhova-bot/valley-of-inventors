@@ -81,6 +81,12 @@
       <section class="card">
         <h2>LLM-мозок</h2>
         <p class="muted">Без LLM поселенці думають за правилами і вчаться на заохоченнях. З LLM безкоштовна відкрита модель вигадує їхні експерименти та розмови, а рушій фізики перевіряє, чи це справді працює.</p>
+        <div class="presets" role="group" aria-label="Готові налаштування">
+          <button class="preset" data-preset="openrouter"><b>OpenRouter</b><span>хмара, працює з телефона</span></button>
+          <button class="preset" data-preset="ollama"><b>Ollama</b><span>на твоєму комп'ютері</span></button>
+          <button class="preset" data-preset="lmstudio"><b>LM Studio</b><span>на твоєму комп'ютері</span></button>
+        </div>
+        <p class="presetnote" id="presetNote" hidden></p>
         <label class="row switch"><input type="checkbox" id="llmOn"> <span>Під'єднати модель</span></label>
         <div class="grid2">
           <label for="llmProv">Сервер</label>
@@ -99,13 +105,19 @@
         <ol class="llmlog" id="llmLog"></ol>
       </section>
       <section class="card">
-        <h2>Як під'єднати безкоштовну модель</h2>
+        <h2>З телефона: OpenRouter</h2>
+        <ol class="steps">
+          <li>Зареєструйтеся на <a href="https://openrouter.ai/keys" target="_blank" rel="noopener">openrouter.ai/keys</a> і створіть ключ (безкоштовні моделі не потребують оплати, але мають ліміти запитів).</li>
+          <li>Відкрийте гру не з Claude, а зі звичайного сайту, наприклад GitHub Pages вашого репозиторію.</li>
+          <li>Натисніть угорі «OpenRouter», вставте ключ і натисніть «Перевірити з'єднання». Модель <code>openrouter/free</code> сама обирає доступну безкоштовну модель.</li>
+        </ol>
+        <h2 style="margin-top:14px">З комп'ютера: Ollama</h2>
         <ol class="steps">
           <li>Встановіть <b>Ollama</b> (ollama.com) і завантажте модель: <code>ollama pull qwen2.5:3b</code> (або <code>llama3.2:3b</code>, <code>gemma2:2b</code>; на сильнішому ПК — <code>qwen2.5:7b</code>).</li>
           <li>Дозвольте сторінці звертатися до Ollama: <code>OLLAMA_ORIGINS="*" ollama serve</code> (Windows PowerShell: <code>$env:OLLAMA_ORIGINS="*"; ollama serve</code>).</li>
-          <li>Відкрийте гру з файлу <code>index.html</code> із репозиторію у себе на комп'ютері, увімкніть перемикач угорі й натисніть «Перевірити з'єднання».</li>
+          <li>Відкрийте гру з файлу <code>index.html</code> із репозиторію у себе на комп'ютері, натисніть угорі «Ollama» й «Перевірити з'єднання».</li>
         </ol>
-        <p class="muted">У веб-версії гри, відкритій із Claude, з'єднання зі сторонніми серверами заблоковані, тому там працює лише мозок на правилах.</p>
+        <p class="muted">У веб-версії гри, відкритій із Claude, з'єднання зі сторонніми серверами заблоковані, тому там працює лише мозок на правилах. Ключ API зберігається лише у вашому браузері.</p>
       </section>
       <section class="card">
         <h2>Як це влаштовано</h2>

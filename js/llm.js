@@ -13,17 +13,37 @@
   let cfg = Object.assign({}, DEFAULTS);
   try { const s = JSON.parse(localStorage.getItem('valley.llm') || 'null'); if (s) cfg = Object.assign(cfg, s); } catch (e) { /* без сховища */ }
 
-  const state = { busy: false, last: 0, ok: 0, fail: 0, lastError: '', latency: 0, status: 'вимкнено', log: [] };
+  const state = { busy: false, last: 0, backoff: 0, ok: 0, fail: 0, lastError: '', latency: 0, status: 'вимкнено', log: [] };
+
+  const PRESETS = {
+    openrouter: { provider: 'openai', url: 'https://openrouter.ai/api/v1', model: 'openrouter/free', cooldown: 6, note: 'Вставте ключ з <a href="https://openrouter.ai/keys" target="_blank" rel="noopener">openrouter.ai/keys</a>. Модель <code>openrouter/free</code> сама обирає доступну безкоштовну модель. Гра має бути відкрита зі звичайного сайту, а не з Claude.' },
+    ollama: { provider: 'ollama', url: 'http://localhost:11434', model: 'qwen2.5:3b', cooldown: 1.5, note: 'Запустіть <code>OLLAMA_ORIGINS="*" ollama serve</code> і завантажте модель: <code>ollama pull qwen2.5:3b</code>.' },
+    lmstudio: { provider: 'openai', url: 'http://localhost:1234/v1', model: '', cooldown: 1.5, note: 'У LM Studio завантажте модель і ввімкніть локальний сервер (Developer → Start Server, з дозволом CORS). Потім натисніть «Перевірити з\'єднання» і виберіть модель зі списку.' },
+  };
 
   const LLM = V.LLM = {
     cfg, state,
     save() { try { localStorage.setItem('valley.llm', JSON.stringify(cfg)); } catch (e) { /* ок */ } },
     set(k, v) { cfg[k] = v; LLM.save(); if (k === 'enabled') state.status = v ? 'увімкнено' : 'вимкнено'; },
-    ready() { return cfg.enabled && !state.busy && (performance.now() - state.last) / 1000 > cfg.cooldown; },
+    ready() { return cfg.enabled && !state.busy && performance.now() > state.backoff && (performance.now() - state.last) / 1000 > cfg.cooldown; },
     canPlan() { return cfg.plans && LLM.ready(); },
     canChat() { return cfg.chat && LLM.ready() && Math.random() < 0.35; },
   };
   state.status = cfg.enabled ? 'увімкнено' : 'вимкнено';
+
+  LLM.PRESETS = PRESETS;
+  LLM.applyPreset = function (id) {
+    const p = PRESETS[id]; if (!p) return null;
+    cfg.keys = cfg.keys || {};
+    if (cfg.preset) cfg.keys[cfg.preset] = cfg.apiKey;   // ключ кожного сервісу зберігається окремо
+    for (const k of ['provider', 'url', 'model', 'cooldown']) cfg[k] = p[k];
+    cfg.preset = id;
+    cfg.apiKey = cfg.keys[id] || '';
+    state.backoff = 0;
+    LLM.save();
+    return p;
+  };
+  const isOpenRouter = () => /openrouter\.ai/.test(cfg.url);
 
   function endpoint() {
     const base = cfg.url.replace(/\/+$/, '');
@@ -38,10 +58,13 @@
     try {
       const headers = { 'Content-Type': 'application/json' };
       if (cfg.apiKey) headers.Authorization = 'Bearer ' + cfg.apiKey;
+      if (isOpenRouter()) headers['X-Title'] = 'Valley of Inventors';
       const body = cfg.provider === 'ollama'
         ? { model: cfg.model, messages, stream: false, format: 'json', options: { temperature: 0.8, num_predict: maxTokens } }
         : { model: cfg.model, messages, temperature: 0.8, max_tokens: maxTokens };
       const res = await fetch(endpoint(), { method: 'POST', headers, body: JSON.stringify(body), signal: ctrl.signal });
+      if (res.status === 429) { state.backoff = performance.now() + 45000; throw new Error('ліміт запитів, пауза 45 с'); }
+      if (res.status === 401) throw new Error('невірний або відсутній ключ API');
       if (!res.ok) throw new Error('HTTP ' + res.status + ' ' + (await res.text()).slice(0, 120));
       const data = await res.json();
       const text = cfg.provider === 'ollama' ? data.message && data.message.content : data.choices && data.choices[0].message.content;
@@ -67,6 +90,14 @@
     const base = cfg.url.replace(/\/+$/, '');
     try {
       const headers = cfg.apiKey ? { Authorization: 'Bearer ' + cfg.apiKey } : {};
+      if (isOpenRouter()) {
+        if (!cfg.apiKey) { state.status = 'вставте ключ API'; return { ok: false, error: 'немає ключа' }; }
+        const k = await fetch(base + '/key', { headers });
+        if (k.status === 401) { state.status = 'ключ не прийнято'; return { ok: false, error: '401' }; }
+        if (!k.ok) throw new Error('HTTP ' + k.status);
+        state.status = 'з\'єднано з OpenRouter';
+        return { ok: true, models: [cfg.model], skipCheck: true };
+      }
       const url = cfg.provider === 'ollama' ? base + '/api/tags' : (base.endsWith('/v1') ? base : base + '/v1') + '/models';
       const r = await fetch(url, { headers });
       if (!r.ok) throw new Error('HTTP ' + r.status);

@@ -80,11 +80,27 @@
 
   /* ---------- LLM-налаштування ---------- */
   const L = V.LLM;
+  function syncLLMForm() {
+    $('llmOn').checked = L.cfg.enabled; $('llmProv').value = L.cfg.provider; $('llmUrl').value = L.cfg.url;
+    $('llmModel').value = L.cfg.model; $('llmKey').value = L.cfg.apiKey;
+    document.querySelectorAll('.preset').forEach(b => b.classList.toggle('on', b.dataset.preset === L.cfg.preset));
+    $('llmKey').placeholder = L.cfg.provider === 'ollama' ? 'не потрібен для Ollama' : L.cfg.preset === 'openrouter' ? 'sk-or-…' : 'якщо сервер його вимагає';
+  }
+  document.querySelectorAll('.preset').forEach(b => b.addEventListener('click', () => {
+    const p = L.applyPreset(b.dataset.preset);
+    L.set('enabled', true);
+    syncLLMForm();
+    $('presetNote').innerHTML = p.note; $('presetNote').hidden = false;
+    if (b.dataset.preset === 'openrouter' && !L.cfg.apiKey) $('llmKey').focus();
+    renderPanel(true);
+  }));
   $('llmOn').checked = L.cfg.enabled; $('llmProv').value = L.cfg.provider; $('llmUrl').value = L.cfg.url;
   $('llmModel').value = L.cfg.model; $('llmKey').value = L.cfg.apiKey; $('llmPlans').checked = L.cfg.plans; $('llmChat').checked = L.cfg.chat;
+  syncLLMForm();
   $('llmOn').addEventListener('change', e => L.set('enabled', e.target.checked));
   $('llmProv').addEventListener('change', e => {
-    L.set('provider', e.target.value);
+    L.set('provider', e.target.value); L.set('preset', '');
+    document.querySelectorAll('.preset').forEach(b => b.classList.remove('on'));
     if (e.target.value === 'ollama' && /1234/.test($('llmUrl').value)) { $('llmUrl').value = 'http://localhost:11434'; L.set('url', $('llmUrl').value); }
     if (e.target.value === 'openai' && /11434/.test($('llmUrl').value)) { $('llmUrl').value = 'http://localhost:1234/v1'; L.set('url', $('llmUrl').value); }
   });
@@ -96,7 +112,7 @@
   $('llmTest').addEventListener('click', async () => {
     const r = await L.test();
     if (r.ok) $('llmModels').innerHTML = r.models.map(m => `<option value="${esc(m)}">`).join('');
-    if (r.ok && r.models.length && !r.models.includes(L.cfg.model)) L.state.status += ` · моделі «${L.cfg.model}» немає, доступні: ${r.models.slice(0, 4).join(', ')}`;
+    if (r.ok && !r.skipCheck && r.models.length && !r.models.includes(L.cfg.model)) L.state.status += ` · моделі «${L.cfg.model}» немає, доступні: ${r.models.slice(0, 4).join(', ')}`;
     renderPanel(true);
   });
 
