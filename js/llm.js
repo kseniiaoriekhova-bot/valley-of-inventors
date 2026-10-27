@@ -13,23 +13,24 @@
   let cfg = Object.assign({}, DEFAULTS);
   try { const s = JSON.parse(localStorage.getItem('valley.llm') || 'null'); if (s) cfg = Object.assign(cfg, s); } catch (e) { /* без сховища */ }
 
-  const state = { busy: false, last: 0, backoff: 0, ok: 0, fail: 0, lastError: '', latency: 0, status: 'вимкнено', log: [] };
+  const state = { busy: false, last: 0, backoff: 0, ok: 0, fail: 0, lastError: '', latency: 0, status: ['st.off', {}], log: [] };
 
   const PRESETS = {
-    openrouter: { provider: 'openai', url: 'https://openrouter.ai/api/v1', model: 'openrouter/free', cooldown: 6, note: 'Вставте ключ з <a href="https://openrouter.ai/keys" target="_blank" rel="noopener">openrouter.ai/keys</a>. Модель <code>openrouter/free</code> сама обирає доступну безкоштовну модель. Гра має бути відкрита зі звичайного сайту, а не з Claude.' },
-    ollama: { provider: 'ollama', url: 'http://localhost:11434', model: 'qwen2.5:3b', cooldown: 1.5, note: 'Запустіть <code>OLLAMA_ORIGINS="*" ollama serve</code> і завантажте модель: <code>ollama pull qwen2.5:3b</code>.' },
-    lmstudio: { provider: 'openai', url: 'http://localhost:1234/v1', model: '', cooldown: 1.5, note: 'У LM Studio завантажте модель і ввімкніть локальний сервер (Developer → Start Server, з дозволом CORS). Потім натисніть «Перевірити з\'єднання» і виберіть модель зі списку.' },
+    cloudflare: { provider: 'openai', url: '/api/v1', model: '@cf/meta/llama-3.1-8b-instruct-fp8-fast', cooldown: 3 },
+    openrouter: { provider: 'openai', url: 'https://openrouter.ai/api/v1', model: 'openrouter/free', cooldown: 6 },
+    ollama: { provider: 'ollama', url: 'http://localhost:11434', model: 'qwen2.5:3b', cooldown: 1.5 },
+    lmstudio: { provider: 'openai', url: 'http://localhost:1234/v1', model: '', cooldown: 1.5 },
   };
 
   const LLM = V.LLM = {
     cfg, state,
     save() { try { localStorage.setItem('valley.llm', JSON.stringify(cfg)); } catch (e) { /* ок */ } },
-    set(k, v) { cfg[k] = v; LLM.save(); if (k === 'enabled') state.status = v ? 'увімкнено' : 'вимкнено'; },
+    set(k, v) { cfg[k] = v; LLM.save(); if (k === 'enabled') state.status = [v ? 'st.on' : 'st.off', {}]; },
     ready() { return cfg.enabled && !state.busy && performance.now() > state.backoff && (performance.now() - state.last) / 1000 > cfg.cooldown; },
     canPlan() { return cfg.plans && LLM.ready(); },
     canChat() { return cfg.chat && LLM.ready() && Math.random() < 0.35; },
   };
-  state.status = cfg.enabled ? 'увімкнено' : 'вимкнено';
+  state.status = [cfg.enabled ? 'st.on' : 'st.off', {}];
 
   LLM.PRESETS = PRESETS;
   LLM.applyPreset = function (id) {
@@ -43,10 +44,12 @@
     LLM.save();
     return p;
   };
+  // відносна адреса (/api/v1) — сервер, з якого відкрито гру (Cloudflare Worker)
+  const absUrl = u => /^https?:/i.test(u) ? u : (typeof location !== 'undefined' ? location.origin : '') + u;
   const isOpenRouter = () => /openrouter\.ai/.test(cfg.url);
 
   function endpoint() {
-    const base = cfg.url.replace(/\/+$/, '');
+    const base = absUrl(cfg.url).replace(/\/+$/, '');
     return cfg.provider === 'ollama' ? base + '/api/chat' : (base.endsWith('/v1') ? base : base + '/v1') + '/chat/completions';
   }
 
@@ -63,18 +66,18 @@
         ? { model: cfg.model, messages, stream: false, format: 'json', options: { temperature: 0.8, num_predict: maxTokens } }
         : { model: cfg.model, messages, temperature: 0.8, max_tokens: maxTokens };
       const res = await fetch(endpoint(), { method: 'POST', headers, body: JSON.stringify(body), signal: ctrl.signal });
-      if (res.status === 429) { state.backoff = performance.now() + 45000; throw new Error('ліміт запитів, пауза 45 с'); }
-      if (res.status === 401) throw new Error('невірний або відсутній ключ API');
+      if (res.status === 429) { state.backoff = performance.now() + 45000; throw new Error('429 (limit, 45 s)'); }
+      if (res.status === 401) throw new Error('401 (API key)');
       if (!res.ok) throw new Error('HTTP ' + res.status + ' ' + (await res.text()).slice(0, 120));
       const data = await res.json();
       const text = cfg.provider === 'ollama' ? data.message && data.message.content : data.choices && data.choices[0].message.content;
-      state.ok++; state.latency = Math.round(performance.now() - t0); state.status = `працює (${state.latency} мс)`;
+      state.ok++; state.latency = Math.round(performance.now() - t0); state.status = ['st.works', { ms: state.latency }];
       return parseJSON(text || '');
     } catch (e) {
       state.fail++;
       state.lastError = e.name === 'AbortError' ? 'тайм-аут' : (e.message || String(e));
-      state.status = 'помилка: ' + state.lastError;
-      if (/Failed to fetch|NetworkError|Load failed/i.test(state.lastError)) state.status = 'немає з\'єднання (див. «Як під\'єднати»)';
+      state.status = ['st.err', { e: state.lastError }];
+      if (/Failed to fetch|NetworkError|Load failed/i.test(state.lastError)) state.status = ['st.noconn', {}];
       return null;
     } finally { clearTimeout(timer); state.busy = false; state.last = performance.now(); }
   }
@@ -86,35 +89,37 @@
   }
 
   LLM.test = async function () {
-    state.status = 'перевіряю…';
-    const base = cfg.url.replace(/\/+$/, '');
+    state.status = ['st.checking', {}];
+    const base = absUrl(cfg.url).replace(/\/+$/, '');
     try {
       const headers = cfg.apiKey ? { Authorization: 'Bearer ' + cfg.apiKey } : {};
       if (isOpenRouter()) {
-        if (!cfg.apiKey) { state.status = 'вставте ключ API'; return { ok: false, error: 'немає ключа' }; }
+        if (!cfg.apiKey) { state.status = ['st.needKey', {}]; return { ok: false, error: 'no key' }; }
         const k = await fetch(base + '/key', { headers });
-        if (k.status === 401) { state.status = 'ключ не прийнято'; return { ok: false, error: '401' }; }
+        if (k.status === 401) { state.status = ['st.badKey', {}]; return { ok: false, error: '401' }; }
         if (!k.ok) throw new Error('HTTP ' + k.status);
-        state.status = 'з\'єднано з OpenRouter';
+        state.status = ['st.okOR', {}];
         return { ok: true, models: [cfg.model], skipCheck: true };
       }
       const url = cfg.provider === 'ollama' ? base + '/api/tags' : (base.endsWith('/v1') ? base : base + '/v1') + '/models';
       const r = await fetch(url, { headers });
       if (!r.ok) throw new Error('HTTP ' + r.status);
+      if (!/json/.test(r.headers.get('content-type') || '')) throw new Error('not JSON');
       const d = await r.json();
       const models = cfg.provider === 'ollama' ? (d.models || []).map(m => m.name) : (d.data || []).map(m => m.id);
-      state.status = models.length ? 'з\'єднано' : 'з\'єднано, але моделей немає';
+      state.status = [models.length ? 'st.ok' : 'st.okNoModels', {}];
       return { ok: true, models };
     } catch (e) {
-      state.status = 'немає з\'єднання';
+      state.status = ['st.noconn', {}];
       return { ok: false, error: e.message || String(e) };
     }
   };
 
   const matLine = id => {
-    const m = M[id];
-    return `${id} = ${m.name}${m.desc ? ' [' + m.desc.split('.')[0] + ']' : ''}: ${V.propLine(m)}`;
+    const d = V.matDesc(M[id]);
+    return `${id} = ${V.mn(id)}${d ? ' [' + d.split('.')[0] + ']' : ''}: ${V.propLine(M[id])}`;
   };
+  const langLine = () => V.lang === 'de' ? 'Schreibe "thought" und "name" auf Deutsch.' : 'Пиши "thought" і "name" українською.';
 
   /* ---------- Планування експерименту ---------- */
   LLM.planExperiment = async function (sim, n, o) {
@@ -128,14 +133,14 @@
     if (!mats.size) return null;
 
     const R = V.REWARD;
-    const devs = Object.values(sim.devices).map(d => `${V.IDEAS[d.idea].name} (якість ${d.quality})`).join(', ') || 'нічого';
+    const devs = Object.values(sim.devices).map(d => `${V.ideaName(d.idea)} (якість ${d.quality})`).join(', ') || 'нічого';
     const fails = [...n.failures].slice(-6).join('; ');
     const hints = [n.hints.hotter && 'жару бракує для деяких реакцій', n.hints.air && 'деяким речам потрібен жар без повітря', n.hints.wall && 'стіни печі тріщать від жару'].filter(Boolean).join('; ') || 'немає';
 
-    const sys = `Ти — ${n.name}, поселенець(-ка) у первісній долині. Ти допитлив(-а) і хочеш винаходити.
+    const sys = `Ти — ${V.nn(n.name)}, поселенець(-ка) у первісній долині. Ти допитлив(-а) і хочеш винаходити.
 Світ підкоряється справжній фізиці й хімії: метали відновлюються з руди вугіллям при достатньому жарі, глина спікається, сплави змінюють твердість і крихкість, пристрій працює лише якщо властивості матеріалів підходять.
 Твоє натхнення зараз: ${Math.round(n.insp)}. Ти отримуєш натхнення: новий матеріал +${R.material}, матеріал кращий за всі відомі +${R.useful}, новий винахід, що працює, до +${R.invent}, покращення +${R.improve}, «майже вийшло» +${R.partial}, невдача +${R.fail}. Найцінніше — те, що справді працює і чого ще ніхто не робив.
-Відповідай ЛИШЕ JSON-об'єктом.`;
+Відповідай ЛИШЕ JSON-об'єктом. ${langLine()}`;
 
     const user = `Температура печі з найкращим паливом: ${o.temp ? Math.round(o.temp.t) + '°C' + (o.temp.enclosed ? ', закрита піч' : ', відкрите вогнище') : 'вогню немає'}.
 Уже є в поселенні: ${devs}.
@@ -148,12 +153,12 @@ ${[...mats].map(matLine).join('\n')}
 Можливі експерименти:
 A) нагріти: ${heat.map(h => '[' + h.join(',') + ']').join(' ') || 'немає'}
 B) змайструвати пристрій (idea і по одному матеріалу на кожне гніздо):
-${build.map(b => `  ${b.idea} — ${V.IDEAS[b.idea].name} (щоб ${V.IDEAS[b.idea].verb}); гнізда: ${V.IDEAS[b.idea].slots.map((s, i) => V.SLOT[s].name + ' з [' + b.slots[i].join(',') + ']').join('; ')}`).join('\n') || '  немає'}
+${build.map(b => `  ${b.idea} — ${V.ideaName(b.idea)} (${V.ideaVerb(b.idea)}); гнізда: ${V.IDEAS[b.idea].slots.map((s, i) => V.slotName(s) + ' з [' + b.slots[i].join(',') + ']').join('; ')}`).join('\n') || '  немає'}
 C) сплав (base + add, f = частка add від 0.01 до 0.5; для вуглецю 0.001–0.045): ${o.alloy.map(a => a.base + '+' + a.add).join(', ') || 'немає'}${o.temp ? '' : ''}
 D) композит (matrix + filler, f = частка наповнювача 0.05–0.6): ${o.composite.map(c => c.matrix + '+' + c.filler).join(', ') || 'немає'}
 
 Обери ОДИН експеримент. Формат:
-{"thought":"коротка думка українською","type":"heat|build|alloy|composite","inputs":["id"],"idea":"id","parts":["id"],"base":"id","add":"id","matrix":"id","filler":"id","f":0.1,"name":"назва для нового матеріалу (необов'язково)"}`;
+{"thought":"коротка думка","type":"heat|build|alloy|composite","inputs":["id"],"idea":"id","parts":["id"],"base":"id","add":"id","matrix":"id","filler":"id","f":0.1,"name":"назва для нового матеріалу (необов'язково)"}`;
 
     const j = await call([{ role: 'system', content: sys }, { role: 'user', content: user }], 260);
     if (!j) return null;
@@ -191,8 +196,8 @@ D) композит (matrix + filler, f = частка наповнювача 0.
   /* ---------- Розмова ---------- */
   LLM.chat = async function (sim, a, b, items) {
     const topic = items.length ? items.map(V.knowName).join('; ') : 'щоденне життя';
-    const sys = `Ти пишеш репліки двох поселенців первісної долини. Коротко (до 15 слів кожна), живо, українською. Відповідай лише JSON {"a":"...","b":"..."}.`;
-    const user = `${a.name} (${a.thought}) розповідає ${b.name} про: ${topic}. ${b.name} зараз: ${b.thought}. Епоха: ${sim.era}.`;
+    const sys = `Ти пишеш репліки двох поселенців первісної долини. Коротко (до 15 слів кожна), живо, ${V.lang === 'de' ? 'НІМЕЦЬКОЮ мовою (auf Deutsch)' : 'українською'}. Відповідай лише JSON {"a":"...","b":"..."}.`;
+    const user = `${V.nn(a.name)} (${V.R(a.thought)}) розповідає ${V.nn(b.name)} про: ${topic}. ${V.nn(b.name)} зараз: ${V.R(b.thought)}. Епоха: ${V.eraName(sim.era)}.`;
     const j = await call([{ role: 'system', content: sys }, { role: 'user', content: user }], 120);
     if (!j || typeof j.a !== 'string') return null;
     return [j.a.slice(0, 140), typeof j.b === 'string' ? j.b.slice(0, 140) : ''];

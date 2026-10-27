@@ -63,7 +63,7 @@
     }
     // гори — штрихування
     g.strokeStyle = 'rgba(40,36,32,0.25)'; g.lineWidth = Math.max(1, ts * 0.07);
-    for (const t of w.tiles) if (t.t === V.T.MOUNT) {
+    for (const t of w.tiles) if (t.t === V.TER.MOUNT) {
       const x = t.x * ts, y = t.y * ts;
       g.beginPath(); g.moveTo(x + ts * 0.2, y + ts * 0.8); g.lineTo(x + ts * 0.5, y + ts * 0.25); g.lineTo(x + ts * 0.8, y + ts * 0.8); g.stroke();
     }
@@ -138,9 +138,9 @@
       if (this.sel === n.id) {
         g.strokeStyle = '#ffd36b'; g.lineWidth = 2.5 * d; g.beginPath(); g.arc(x, y, r + 4 * d, 0, 6.29); g.stroke();
         g.font = `600 ${Math.round(11 * d)}px Rubik, system-ui, sans-serif`;
-        const tw = g.measureText(n.name).width;
+        const label = V.nn(n.name), tw = g.measureText(label).width;
         g.fillStyle = 'rgba(20,26,32,0.85)'; g.fillRect(x - tw / 2 - 5 * d, y - r - 22 * d, tw + 10 * d, 16 * d);
-        g.fillStyle = '#fff'; g.fillText(n.name, x - tw / 2, y - r - 10 * d);
+        g.fillStyle = '#fff'; g.fillText(label, x - tw / 2, y - r - 10 * d);
       }
     }
 

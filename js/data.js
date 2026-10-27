@@ -101,21 +101,21 @@
     for (const law of V.LAWS) {
       if (!sameSet(law.inputs, plain)) continue;
       if (law.reducer && !hasReducer) {
-        if (temp >= law.minT) return { ok: false, hint: 'nothing', note: 'руда розжарилася, але нічого не віддала — може, їй чогось бракує в суміші?' };
+        if (temp >= law.minT) return { ok: false, hint: 'nothing', note: ['heat.ore', {}] };
         continue;
       }
       if (!law.reducer && hasReducer && plain.length === inputs.length - 1 && law.id !== 'char') {
         // зайве вугілля не заважає, просто згорає
       }
-      if (law.enclosed && !enclosed) return { ok: false, hint: 'air', law: law.id, note: 'все просто згоріло — може, потрібен жар без повітря?' };
-      if (temp < law.minT) return { ok: false, hint: 'hotter', law: law.id, need: law.minT, note: `щось почало змінюватися, але жару замало (досягнуто ${Math.round(temp)}°C)` };
+      if (law.enclosed && !enclosed) return { ok: false, hint: 'air', law: law.id, note: ['heat.air', {}] };
+      if (temp < law.minT) return { ok: false, hint: 'hotter', law: law.id, need: law.minT, note: ['heat.hotter', { t: Math.round(temp) }] };
       return { ok: true, out: law.out, law: law.id, why: law.why };
     }
     // фізична реакція без нового матеріалу
     const m = M[plain[0]];
-    if (m && m.mp && temp >= m.mp) return { ok: false, hint: 'melt', note: `${m.name} розплавився і знову застиг — новим матеріалом не став` };
-    if (m && m.fuel) return { ok: false, hint: 'burn', note: `${m.name} просто згорів` };
-    return { ok: false, hint: 'nothing', note: 'нічого не сталося' };
+    if (m && m.mp && temp >= m.mp) return { ok: false, hint: 'melt', note: ['heat.melt', { m: m.id }] };
+    if (m && m.fuel) return { ok: false, hint: 'burn', note: ['heat.burn', { m: m.id }] };
+    return { ok: false, hint: 'nothing', note: ['heat.nothing', {}] };
   };
 
   /* ---------- Генератор сплавів і композитів ---------- */
@@ -215,29 +215,21 @@
 
   V.matchReal = function (comp) {
     const ids = comp.map(c => c[0]);
-    for (const r of V.REAL) {
+    for (let i = 0; i < V.REAL.length; i++) {
+      const r = V.REAL[i];
       if (!sameSet(r.comp, ids)) continue;
       if (ids[0] !== r.comp[0]) continue; // основа має збігатися
       const fr = comp.find(c => c[0] === r.minor)[1];
-      if (fr >= r.from && fr < r.to) return r;
+      if (fr >= r.from && fr < r.to) return Object.assign({ idx: i }, r);
     }
     return null;
   };
 
-  const SYL = ['ва', 'ре', 'лі', 'то', 'мі', 'ар', 'ко', 'ні', 'ус', 'да', 'ле', 'ри', 'са', 'ту', 'ен', 'ор', 'ві', 'ла', 'мо', 'зе'];
+  /* Вигадане слово як набір складів — так його можна показати будь-якою мовою */
   V.inventWord = function (rnd) {
-    let w = '';
-    const n = 2 + (rnd() < 0.5 ? 1 : 0);
-    for (let i = 0; i < n; i++) w += SYL[Math.floor(rnd() * SYL.length)];
-    return w.charAt(0).toUpperCase() + w.slice(1);
-  };
-
-  const COMPNAME = { carbon: 'вуглецю' };
-  const compName = id => COMPNAME[id] || (M[id] ? M[id].name : id);
-
-  V.describeComp = function (comp) {
-    const fine = comp.some(([, f]) => f < 0.01 || f > 0.99);
-    return comp.map(([id, f]) => `${(f * 100).toFixed(fine ? 1 : 0)}% ${compName(id)}`).join(' + ');
+    const n = 2 + (rnd() < 0.5 ? 1 : 0), w = [];
+    for (let i = 0; i < n; i++) w.push(Math.floor(rnd() * V.SYL_COUNT));
+    return w;
   };
 
   /* Найближчий відомий матеріал за властивостями */
@@ -311,17 +303,4 @@
     return { works: min >= 0.6, partial: min >= 0.3, quality: +q.toFixed(2), scores, weakSlot: weak, extra };
   };
 
-  /* Короткий опис властивостей для людей */
-  V.propLine = function (p) {
-    const parts = [];
-    parts.push(`твердість ${(+p.hard).toFixed(1)}`);
-    parts.push(`міцність ${(+p.tough).toFixed(1)}`);
-    if (p.flex > 2) parts.push(`гнучкість ${(+p.flex).toFixed(1)}`);
-    parts.push(`густина ${(+p.dens).toFixed(1)} г/см³`);
-    if (p.mp) parts.push(`плавиться ~${Math.round(p.mp)}°C`);
-    else if (p.hp) parts.push(`витримує ~${Math.round(p.hp)}°C`);
-    if (p.cond >= 0.9) parts.push(`провідник, ${p.pot >= 0 ? '+' : ''}${(+p.pot).toFixed(2)} В`);
-    if (p.wp >= 0.8) parts.push('водонепроникний');
-    return parts.join(', ');
-  };
 })(window.V = window.V || {});

@@ -12,58 +12,63 @@
 <body>
 <header class="bar">
   <div class="brand">
-    <h1>Долина винахідників</h1>
-    <span class="era" id="era">Кам'яна доба</span>
+    <h1 data-i18n="title">Долина винахідників</h1>
+    <span class="era" id="era"></span>
   </div>
   <div class="clock">
-    <span class="day" id="day">День 1</span>
+    <span class="day" id="day"></span>
     <span class="sun" id="sun" aria-hidden="true"></span>
   </div>
-  <div class="controls" role="group" aria-label="Швидкість часу">
-    <button id="pause" class="ctl" aria-label="Пауза">❚❚</button>
+  <div class="controls" role="group" data-i18n-aria="aria.speed">
+    <button id="pause" class="ctl">❚❚</button>
     <button class="ctl spd" data-s="1">1×</button>
     <button class="ctl spd" data-s="4">4×</button>
     <button class="ctl spd" data-s="15">15×</button>
     <button class="ctl spd" data-s="50">50×</button>
   </div>
+  <div class="langs" role="group" aria-label="Мова / Sprache">
+    <button class="ctl lang" data-lang="uk" lang="uk">UK</button>
+    <button class="ctl lang" data-lang="de" lang="de">DE</button>
+  </div>
 </header>
 
-<section class="stats" id="stats" aria-label="Стан поселення"></section>
+<section class="stats" id="stats"></section>
 
 <main class="layout">
   <div class="stage">
     <div class="canvas-box">
-      <div class="canvas-wrap" id="canvasWrap"><canvas id="world" aria-label="Карта долини"></canvas></div>
-      <div class="zoom" role="group" aria-label="Масштаб">
-        <button class="ctl" id="zoomIn" aria-label="Наблизити">＋</button>
-        <button class="ctl" id="zoomOut" aria-label="Віддалити">－</button>
+      <div class="canvas-wrap" id="canvasWrap"><canvas id="world" data-i18n-aria="mapLabel"></canvas></div>
+      <div class="zoom" role="group">
+        <button class="ctl" id="zoomIn" data-i18n-aria="zoomIn">＋</button>
+        <button class="ctl" id="zoomOut" data-i18n-aria="zoomOut">－</button>
       </div>
     </div>
+    <div class="strip" id="strip" role="listbox" data-i18n-aria="strip"></div>
     <p class="legend">
-      <span><i class="lg" style="background:#f1ece2"></i>кріль</span>
-      <span><i class="lg" style="background:#9a6a3a"></i>олень</span>
-      <span><i class="lg" style="background:#4b4f55"></i>вовк</span>
-      <span><i class="lg dia" style="background:#3fbf8f"></i>руда</span>
-      <span><i class="lg" style="background:#ffcf5a"></i>дослід</span>
-      <span class="hint">Торкніться поселенця, щоб стежити за ним.</span>
+      <span><i class="lg" style="background:#f1ece2"></i><span data-i18n="lg.rabbit"></span></span>
+      <span><i class="lg" style="background:#9a6a3a"></i><span data-i18n="lg.deer"></span></span>
+      <span><i class="lg" style="background:#4b4f55"></i><span data-i18n="lg.wolf"></span></span>
+      <span><i class="lg dia" style="background:#3fbf8f"></i><span data-i18n="lg.ore"></span></span>
+      <span><i class="lg" style="background:#ffcf5a"></i><span data-i18n="lg.exp"></span></span>
+      <span class="hint" data-i18n="lg.hint"></span>
     </p>
   </div>
 
   <aside class="panel">
     <nav class="tabs" role="tablist">
-      <button class="tab on" data-tab="chron" role="tab">Хроніка</button>
-      <button class="tab" data-tab="people" role="tab">Мешканці</button>
-      <button class="tab" data-tab="disc" role="tab">Відкриття</button>
-      <button class="tab" data-tab="brain" role="tab">Мозок</button>
+      <button class="tab on" data-tab="chron" role="tab" data-i18n="tab.chron"></button>
+      <button class="tab" data-tab="people" role="tab" data-i18n="tab.people"></button>
+      <button class="tab" data-tab="disc" role="tab" data-i18n="tab.disc"></button>
+      <button class="tab" data-tab="brain" role="tab" data-i18n="tab.brain"></button>
     </nav>
 
     <div class="pane on" id="pane-chron">
       <div class="chips" id="chronFilter">
-        <button class="chip on" data-f="all">Усе</button>
-        <button class="chip" data-f="discovery">Відкриття</button>
-        <button class="chip" data-f="idea">Ідеї</button>
-        <button class="chip" data-f="talk">Розмови</button>
-        <button class="chip" data-f="life">Життя</button>
+        <button class="chip on" data-f="all" data-i18n="f.all"></button>
+        <button class="chip" data-f="discovery" data-i18n="f.discovery"></button>
+        <button class="chip" data-f="idea" data-i18n="f.idea"></button>
+        <button class="chip" data-f="talk" data-i18n="f.talk"></button>
+        <button class="chip" data-f="life" data-i18n="f.life"></button>
       </div>
       <ol class="chron" id="chron"></ol>
     </div>
@@ -79,60 +84,56 @@
 
     <div class="pane" id="pane-brain">
       <section class="card">
-        <h2>LLM-мозок</h2>
-        <p class="muted">Без LLM поселенці думають за правилами і вчаться на заохоченнях. З LLM безкоштовна відкрита модель вигадує їхні експерименти та розмови, а рушій фізики перевіряє, чи це справді працює.</p>
-        <div class="presets" role="group" aria-label="Готові налаштування">
-          <button class="preset" data-preset="openrouter"><b>OpenRouter</b><span>хмара, працює з телефона</span></button>
-          <button class="preset" data-preset="ollama"><b>Ollama</b><span>на твоєму комп'ютері</span></button>
-          <button class="preset" data-preset="lmstudio"><b>LM Studio</b><span>на твоєму комп'ютері</span></button>
+        <h2 data-i18n="llm.title"></h2>
+        <p class="muted" data-i18n="llm.intro"></p>
+        <div class="presets" role="group">
+          <button class="preset" data-preset="cloudflare"><b>Cloudflare</b><span data-i18n="p.cf"></span></button>
+          <button class="preset" data-preset="openrouter"><b>OpenRouter</b><span data-i18n="p.or"></span></button>
+          <button class="preset" data-preset="ollama"><b>Ollama</b><span data-i18n="p.ol"></span></button>
+          <button class="preset" data-preset="lmstudio"><b>LM Studio</b><span data-i18n="p.lm"></span></button>
         </div>
         <p class="presetnote" id="presetNote" hidden></p>
-        <label class="row switch"><input type="checkbox" id="llmOn"> <span>Під'єднати модель</span></label>
+        <label class="row switch"><input type="checkbox" id="llmOn"> <span data-i18n="llm.on"></span></label>
         <div class="grid2">
-          <label for="llmProv">Сервер</label>
-          <select id="llmProv"><option value="ollama">Ollama</option><option value="openai">OpenAI-сумісний (LM Studio, llama.cpp…)</option></select>
-          <label for="llmUrl">Адреса</label>
+          <label for="llmProv" data-i18n="llm.server"></label>
+          <select id="llmProv"><option value="ollama">Ollama</option><option value="openai" data-i18n="llm.compat"></option></select>
+          <label for="llmUrl" data-i18n="llm.url"></label>
           <input id="llmUrl" type="text" spellcheck="false">
-          <label for="llmModel">Модель</label>
+          <label for="llmModel" data-i18n="llm.model"></label>
           <input id="llmModel" type="text" spellcheck="false" list="llmModels">
           <datalist id="llmModels"></datalist>
-          <label for="llmKey">Ключ API</label>
-          <input id="llmKey" type="password" placeholder="не потрібен для Ollama">
+          <label for="llmKey" data-i18n="llm.key"></label>
+          <input id="llmKey" type="password">
         </div>
-        <label class="row"><input type="checkbox" id="llmPlans"> <span>Модель вигадує експерименти</span></label>
-        <label class="row"><input type="checkbox" id="llmChat"> <span>Модель пише розмови</span></label>
-        <div class="row gap"><button class="btn" id="llmTest">Перевірити з'єднання</button><span class="status" id="llmStatus"></span></div>
+        <label class="row"><input type="checkbox" id="llmPlans"> <span data-i18n="llm.plans"></span></label>
+        <label class="row"><input type="checkbox" id="llmChat"> <span data-i18n="llm.chat"></span></label>
+        <div class="row gap"><button class="btn" id="llmTest" data-i18n="llm.test"></button><span class="status" id="llmStatus"></span></div>
         <ol class="llmlog" id="llmLog"></ol>
       </section>
       <section class="card">
-        <h2>З телефона: OpenRouter</h2>
-        <ol class="steps">
-          <li>Зареєструйтеся на <a href="https://openrouter.ai/keys" target="_blank" rel="noopener">openrouter.ai/keys</a> і створіть ключ (безкоштовні моделі не потребують оплати, але мають ліміти запитів).</li>
-          <li>Відкрийте гру не з Claude, а зі звичайного сайту, наприклад GitHub Pages вашого репозиторію.</li>
-          <li>Натисніть угорі «OpenRouter», вставте ключ і натисніть «Перевірити з'єднання». Модель <code>openrouter/free</code> сама обирає доступну безкоштовну модель.</li>
-        </ol>
-        <h2 style="margin-top:14px">З комп'ютера: Ollama</h2>
-        <ol class="steps">
-          <li>Встановіть <b>Ollama</b> (ollama.com) і завантажте модель: <code>ollama pull qwen2.5:3b</code> (або <code>llama3.2:3b</code>, <code>gemma2:2b</code>; на сильнішому ПК — <code>qwen2.5:7b</code>).</li>
-          <li>Дозвольте сторінці звертатися до Ollama: <code>OLLAMA_ORIGINS="*" ollama serve</code> (Windows PowerShell: <code>$env:OLLAMA_ORIGINS="*"; ollama serve</code>).</li>
-          <li>Відкрийте гру з файлу <code>index.html</code> із репозиторію у себе на комп'ютері, натисніть угорі «Ollama» й «Перевірити з'єднання».</li>
-        </ol>
-        <p class="muted">У веб-версії гри, відкритій із Claude, з'єднання зі сторонніми серверами заблоковані, тому там працює лише мозок на правилах. Ключ API зберігається лише у вашому браузері.</p>
+        <h2 data-i18n="how.title"></h2>
+        <ul class="plain">
+          <li data-i18n-html="how.cf"></li>
+          <li data-i18n-html="how.or"></li>
+          <li data-i18n-html="how.ol"></li>
+        </ul>
+        <p class="muted" data-i18n="how.note"></p>
       </section>
       <section class="card">
-        <h2>Як це влаштовано</h2>
+        <h2 data-i18n="about.title"></h2>
         <ul class="plain">
-          <li><b>Закони природи</b> — властивості матеріалів, температура полум'я, піч, міхи, межа жаростійкості стін, сплави та композити. Їх знає лише світ.</li>
-          <li><b>Ідеї</b> народжуються з проблем: «жару замало», «риба близько», «носити важко». Як саме втілити ідею, поселенці шукають самі.</li>
-          <li><b>Натхнення</b>: нове знання +2, навчити іншого +4, новий матеріал +15, матеріал кращий за відомі +20, робочий винахід до +40, покращення +10, невдача +1, бонус автору, коли інші користуються винаходом. Поселенці частіше роблять те, що приносить натхнення.</li>
-          <li><b>Нові матеріали</b>: якщо склад збігається з реальним (бронза, спекулум, сталь, саман…), матеріал отримує справжню назву; якщо ні — вигадану з поясненням і найближчим відомим аналогом.</li>
+          <li data-i18n-html="about.1"></li>
+          <li data-i18n-html="about.2"></li>
+          <li data-i18n-html="about.3"></li>
+          <li data-i18n-html="about.4"></li>
         </ul>
-        <div class="row gap"><button class="btn" id="newWorld">Новий світ</button><span class="muted" id="seedLbl"></span></div>
+        <div class="row gap"><button class="btn" id="newWorld" data-i18n="newWorld"></button><span class="muted" id="seedLbl"></span></div>
       </section>
     </div>
   </aside>
 </main>
 
+<script src="js/i18n.js"></script>
 <script src="js/data.js"></script>
 <script src="js/world.js"></script>
 <script src="js/sim.js"></script>

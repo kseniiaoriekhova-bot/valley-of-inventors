@@ -1,5 +1,5 @@
-"""Збирає гру в один HTML-файл (dist/valley-of-inventors.html).
-Запуск: python3 build.py            -> повний файл для локального запуску
+"""Збирає гру в один HTML-файл (dist/index.html).
+Запуск: python3 build.py            -> dist/index.html (локальний запуск і сайт на Cloudflare)
         python3 build.py --fragment OUT -> без <html>/<head>/<body> (для артефакту Claude)"""
 import re, sys, pathlib
 root = pathlib.Path(__file__).parent
@@ -15,5 +15,5 @@ if '--fragment' in sys.argv:
     out.write_text(frag, encoding='utf-8')
 else:
     (root / 'dist').mkdir(exist_ok=True)
-    (root / 'dist' / 'valley-of-inventors.html').write_text(html, encoding='utf-8')
+    (root / 'dist' / 'index.html').write_text(html, encoding='utf-8')
 print('ok')

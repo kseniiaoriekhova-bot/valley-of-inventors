@@ -9,9 +9,6 @@
     'Марта', 'Ілько', 'Соломія', 'Захар', 'Олекса', 'Дарина', 'Роман', 'Христя', 'Іванна', 'Святослав', 'Галя', 'Петро', 'Віра', 'Гнат'];
   const COLORS = ['#e8a33d', '#4fb3a9', '#d9668a', '#7d8de6', '#9ccf5a', '#e6735a', '#b07de0', '#5fa8e8', '#d6c14a', '#e88fd0', '#62c98a', '#c9925e'];
   const FOODS = ['cooked', 'meat', 'fish', 'berries'];
-  const FEMALE = new Set(['Олеся', 'Мирослава', 'Ярина', 'Злата', 'Леся', 'Устина', 'Марта', 'Соломія', 'Дарина', 'Христя', 'Іванна', 'Галя', 'Віра']);
-  const g = (n, m, f) => FEMALE.has(n.name) ? f : m;
-  V.g = g;
 
   // Заохочення («натхнення»)
   const R = V.REWARD = {
@@ -19,8 +16,7 @@
     improve: 10, impact: 0.3, help: 3, build: 5, hunt: 1.5, gather: 0.5, explore: 1,
   };
   const ACTS = ['gather', 'hunt', 'fish', 'experiment', 'teach', 'build', 'explore'];
-  const ACT_NAMES = { gather: 'збирає', hunt: 'полює', fish: 'рибалить', experiment: 'експериментує', teach: 'навчає', build: 'будує', explore: 'досліджує', eat: 'їсть', sleep: 'спить', listen: 'слухає', play: 'грається', think: 'обмірковує' };
-  V.ACT_NAMES = ACT_NAMES;
+  const msg = V.msg;
 
   function Sim(seed) {
     this.seed = seed;
@@ -44,11 +40,11 @@
     this.ideasSeen = new Set();
     this.pen = 0;
     this.houses = 0;
-    this.era = 'Кам\'яна доба';
+    this.era = 'stone';
     this.stats = { wolfKills: 0, hunts: 0, fish: 0, taught: 0, experiments: 0, births: 0 };
     V.spawnAnimals(this);
     for (let i = 0; i < 8; i++) this.addNPC(null);
-    this.log('Вісім поселенців розклали багаття в долині. Вони вміють розводити вогонь — і більше нічого.', 'era');
+    this.log(msg('log.start'), 'era');
   }
   V.Sim = Sim;
   const P = Sim.prototype;
@@ -56,11 +52,13 @@
   P.day = function () { return Math.floor(this.tick / this.DAY) + 1; };
   P.phase = function () { return (this.tick % this.DAY) / this.DAY; };
   P.isNight = function () { const p = this.phase(); return p > 0.78 || p < 0.04; };
-  P.log = function (text, kind = 'life', npc = null) {
-    this.chronicle.push({ day: this.day(), t: this.tick, text, kind, npc: npc ? npc.id : null });
+  /* Повідомлення зберігаються як [ключ, параметри] — перекладаються під час показу */
+  P.log = function (m, kind = 'life', npc = null) {
+    this.chronicle.push({ day: this.day(), t: this.tick, msg: m, kind, npc: npc ? npc.id : null });
     if (this.chronicle.length > 400) this.chronicle.shift();
-    if (npc) { npc.history.unshift(`День ${this.day()}: ${text}`); if (npc.history.length > 12) npc.history.pop(); }
+    if (npc) { npc.history.unshift({ day: this.day(), msg: m }); if (npc.history.length > 12) npc.history.pop(); }
   };
+  const think = (n, key, p) => { n.thought = msg(key, p); n.thoughtLLM = false; };
 
   /* ---------- Поселенці ---------- */
   P.addNPC = function (parents) {
@@ -75,7 +73,7 @@
       curiosity: 0.3 + rnd() * 0.7, sociability: 0.3 + rnd() * 0.7, diligence: 0.3 + rnd() * 0.7,
       hunger: 20 + rnd() * 20, energy: 70 + rnd() * 30, social: rnd() * 30, health: 100,
       skill: { gather: 1, hunt: 1, craft: 1, teach: 1 },
-      know: new Set(), insp: 0, val: {}, task: null, carry: null, thought: 'Оглядаюся довкола.',
+      know: new Set(), insp: 0, val: {}, task: null, carry: null, thought: ['th.look', {}], thoughtLLM: false,
       history: [], failures: new Set(), hints: {}, friends: {}, inventions: [], taughtCount: 0,
       hunts: 0, gathers: 0, heatTries: 0, ageTicks: parents ? 0 : this.DAY * 3, parents: parents ? parents.map(p => p.id) : null,
       llmNote: '',
@@ -102,7 +100,7 @@
     if (n.know.has(key)) return false;
     n.know.add(key);
     if (key.startsWith('m:')) this.worldKnown.add(key.slice(2));
-    this.reward(n, key.startsWith('i:') ? R.idea : R.learn, how || 'нове знання');
+    this.reward(n, key.startsWith('i:') ? R.idea : R.learn, how || (key.startsWith('i:') ? 'idea' : 'learn'));
     return true;
   };
   P.reward = function (n, amt, why) {
@@ -118,7 +116,7 @@
   P.devQ = function (idea) { return this.devices[idea] ? this.devices[idea].quality : 0; };
   P.useDev = function (n, idea) {
     const d = this.devices[idea];
-    if (d && d.inventor !== n.id) { const inv = this.npcs.find(x => x.id === d.inventor); if (inv) this.reward(inv, R.impact, 'інші користуються моїм винаходом'); }
+    if (d && d.inventor !== n.id) { const inv = this.npcs.find(x => x.id === d.inventor); if (inv) this.reward(inv, R.impact, 'impact'); }
   };
 
   /* Температура, яку дає табір */
@@ -150,7 +148,17 @@
     if (!V.walkable(this.world, n.x, n.y)) { n.x = this.world.camp.x; n.y = this.world.camp.y; }
     return false;
   };
-  P.campSpot = function (n) { const a = (n.id * 2.4) % 6.28; const r = 1.2 + (n.id % 3) * 0.5; return { x: this.world.camp.x + Math.cos(a) * r, y: this.world.camp.y + Math.sin(a) * r }; };
+  /* Місце поселенця біля вогнища — завжди на суходолі */
+  P.campSpot = function (n) {
+    if (n.spot) return n.spot;
+    const c = this.world.camp;
+    for (let k = 0; k < 24; k++) {
+      const a = (n.id * 2.4 + k * 0.7) % 6.28, r = 1.2 + ((n.id + k) % 3) * 0.5;
+      const p = { x: c.x + Math.cos(a) * r, y: c.y + Math.sin(a) * r };
+      if (V.walkable(this.world, p.x, p.y)) return (n.spot = p);
+    }
+    return (n.spot = { x: c.x, y: c.y });
+  };
 
   /* Знайти найближчу клітинку з ресурсом */
   P.findRes = function (n, res) {
@@ -166,7 +174,7 @@
     let best = null, bd = 1e9;
     const w = this.world;
     for (const t of w.tiles) {
-      if (w.isWater(t) || t.t === V.T.MOUNT) continue;
+      if (w.isWater(t) || t.t === V.TER.MOUNT) continue;
       let fish = 0;
       for (const [i, j] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const u = w.at(t.x + i, t.y + j); if (u && w.isWater(u)) fish = Math.max(fish, u.fish); }
       if (fish < 1.5) continue;
@@ -183,34 +191,34 @@
       const t = w.at(cx + i, cy + j); if (!t) continue;
       if (t.r && !n.know.has('m:' + t.r)) {
         const first = !this.worldKnown.has(t.r);
-        this.learn(n, 'm:' + t.r, 'знайшов новий матеріал');
-        if (first) this.log(`${n.name} вперше ${g(n, 'знаходить', 'знаходить')} у долині: ${M[t.r].name}.`, 'find', n);
+        this.learn(n, 'm:' + t.r, 'foundMat');
+        if (first) this.log(msg('log.find', { n: n.name, m: t.r }), 'find', n);
       }
-      if (w.isWater(t) && t.fish > 2 && !n.know.has('m:fish')) this.learn(n, 'm:fish', 'побачив рибу');
+      if (w.isWater(t) && t.fish > 2 && !n.know.has('m:fish')) this.learn(n, 'm:fish', 'sawFish');
     }
   };
 
   /* ---------- Ідеї: виникають із проблем ---------- */
   P.checkIdeas = function (n) {
     const k = x => n.know.has(x);
-    const unlock = (id, why) => {
-      if (!k('i:' + id) && this.learn(n, 'i:' + id, 'нова ідея')) {
-        n.thought = why.charAt(0).toUpperCase() + why.slice(1);
-        if (!this.ideasSeen.has(id)) { this.ideasSeen.add(id); this.log(`${n.name} замислюється: ${why}`, 'idea', n); }
+    const unlock = id => {
+      if (!k('i:' + id) && this.learn(n, 'i:' + id, 'idea')) {
+        think(n, 'th.idea', { w: id });
+        if (!this.ideasSeen.has(id)) { this.ideasSeen.add(id); this.log(msg('log.idea', { n: n.name, w: id }), 'idea', n); }
       }
     };
-    if (k('m:clay') && (k('l:cook') || this.day() >= 2)) unlock('vessel', 'якби мати щось, що тримає воду над вогнем…');
-    if (n.hints.air || n.hints.hotter) unlock('kiln', 'треба загородити вогонь, щоб жар не розходився.');
-    if (n.hints.hotter && this.structures.kiln) unlock('bellows', 'а якщо дмухати в піч повітрям?');
-    if (k('m:fish') && k('m:fiber')) unlock('net', 'риба близько — от би її чимось вичерпати.');
-    if (k('d:net') || (k('m:fish') && k('m:wood') && this.day() >= 4)) unlock('raft', 'деревина тримається на воді… а людина на ній?');
-    if (n.gathers >= 12) unlock('cart', 'носити все в руках — надто повільно.');
-    if (n.hunts >= 3 && k('m:fiber')) unlock('pen', 'а що як тримати тварин поруч, замість ганятися за ними?');
-    if ((k('m:brick') || k('m:mortar') || k('m:stone')) && this.day() >= 3 && this.structures.kiln) unlock('house', 'стіни, що тримають жар у печі, втримають і тепло вночі.');
-    if (k('m:glass')) unlock('lens', 'крізь скло все здається більшим!');
-    if (n.taughtCount >= 5 && k('m:clay')) unlock('tablet', 'якщо видряпати знання на глині, їх не забудуть.');
+    if (k('m:clay') && (k('l:cook') || this.day() >= 2)) unlock('vessel');
+    if (n.hints.air || n.hints.hotter) unlock('kiln');
+    if (n.hints.hotter && this.structures.kiln) unlock('bellows');
+    if (k('m:fish') && k('m:fiber')) unlock('net');
+    if (k('d:net') || (k('m:fish') && k('m:wood') && this.day() >= 4)) unlock('raft');
+    if (n.gathers >= 12) unlock('cart');
+    if (n.hunts >= 3 && k('m:fiber')) unlock('pen');
+    if ((k('m:brick') || k('m:mortar') || k('m:stone')) && this.day() >= 3 && this.structures.kiln) unlock('house');
+    if (k('m:glass')) unlock('lens');
+    if (n.taughtCount >= 5 && k('m:clay')) unlock('tablet');
     const metals = [...n.know].filter(x => x.startsWith('m:') && M[x.slice(2)] && M[x.slice(2)].cond >= 0.9).length;
-    if (metals >= 2 && (k('m:salt') || k('m:quicklime'))) unlock('cell', 'два різні метали в солоній воді щипають язик — у цьому щось є.');
+    if (metals >= 2 && (k('m:salt') || k('m:quicklime'))) unlock('cell');
   };
 
   /* ---------- Варіанти експериментів ---------- */
@@ -309,12 +317,12 @@
     const T = fuel ? this.temp(fuel) : { t: 0, raw: 0, cap: Infinity, enclosed: false };
 
     if (plan.type === 'heat') {
-      for (const id of plan.inputs) if (!this.take(id)) return this.fail(n, `забракло: ${M[id].name}`, plan);
+      for (const id of plan.inputs) if (!this.take(id)) return this.fail(n, id, plan);
       if (fuel) this.take(fuel);
       n.heatTries++;
       const res = V.heat(plan.inputs, T.t, T.enclosed);
-      const names = plan.inputs.map(id => M[id].name).join(' + ');
-      if (T.raw > T.cap && !res.ok) { n.hints.wall = true; this.log(`${n.name}: стіни печі тріщать — вище ${Math.round(T.cap)}°C вони не витримують.`, 'hint', n); }
+      const ms = plan.inputs.slice();
+      if (T.raw > T.cap && !res.ok) { n.hints.wall = true; this.log(msg('log.wall', { n: n.name, cap: Math.round(T.cap) }), 'hint', n); }
       if (res.ok) {
         const out = res.out, k = out === 'cooked' ? 2 : 3;
         this.give(out, k);
@@ -322,20 +330,20 @@
         const first = !this.worldKnown.has(out);
         if (this.learn(n, 'm:' + out)) { /* винагорода в learn */ }
         if (first) {
-          this.reward(n, R.material, 'відкрив новий матеріал');
+          this.reward(n, R.material, 'newMat');
           const cold = V.LAWS.find(l => l.id === res.law).minT === 0;
-          this.discoveries.push({ day: this.day(), kind: 'material', id: out, name: M[out].name, by: n.id, how: cold ? `${names}, без нагрівання` : `${names} при ${Math.round(T.t)}°C`, why: res.why, real: true });
-          this.log(`★ ${n.name} ${cold ? 'поєднує' : 'нагріває'} ${names}${cold ? '' : ` до ${Math.round(T.t)}°C`} і отримує новий матеріал — ${M[out].name}! (${res.why})`, 'discovery', n);
-          n.thought = `Вийшло! ${M[out].name}!`;
-        } else { n.thought = `Знову вийшло: ${M[out].name}.`; this.reward(n, 1, 'корисна робота'); }
+          this.discoveries.push({ day: this.day(), kind: 'material', id: out, by: n.id, how: msg('how.heat', { ms, cold, t: Math.round(T.t) }), why: msg('raw', { s: '' }), law: res.law, real: true });
+          this.log(msg('log.discMat', { n: n.name, cold, ms, t: Math.round(T.t), m: out, law: res.law }), 'discovery', n);
+          think(n, 'th.success', { m: out });
+        } else { think(n, 'th.again', { m: out }); this.reward(n, 1, 'work'); }
         n.hints.hotter = false;
         return;
       }
       n.failures.add(JSON.stringify(plan) + '@' + Math.round(T.t / 100));
-      if (res.hint === 'hotter') { n.hints.hotter = true; n.hints.hotterSet = plan.inputs.slice().sort().join('+'); this.reward(n, 3, 'цінне спостереження'); this.log(`${n.name}: ${names} — ${res.note}`, 'hint', n); }
-      else if (res.hint === 'air') { n.hints.air = true; this.reward(n, 3, 'цінне спостереження'); this.log(`${n.name}: ${names} — ${res.note}`, 'hint', n); }
-      else this.reward(n, R.fail, 'спроба');
-      n.thought = res.note;
+      if (res.hint === 'hotter') { n.hints.hotter = true; n.hints.hotterSet = plan.inputs.slice().sort().join('+'); this.reward(n, 3, 'observe'); this.log(msg('log.hint', { n: n.name, ms, note: res.note }), 'hint', n); }
+      else if (res.hint === 'air') { n.hints.air = true; this.reward(n, 3, 'observe'); this.log(msg('log.hint', { n: n.name, ms, note: res.note }), 'hint', n); }
+      else this.reward(n, R.fail, 'fail');
+      n.thought = res.note; n.thoughtLLM = false;
       this.checkIdeas(n);
       return;
     }
@@ -344,49 +352,49 @@
       const idea = V.IDEAS[plan.idea];
       const need = {};
       plan.parts.forEach(id => need[id] = (need[id] || 0) + (idea.structure ? 2 : 1));
-      for (const id in need) if (this.stock(id) < need[id]) return this.fail(n, `забракло: ${M[id].name}`, plan, true);
+      for (const id in need) if (this.stock(id) < need[id]) return this.fail(n, id, plan);
       for (const id in need) this.take(id, need[id]);
       const ev = V.evaluate(plan.idea, plan.parts.map(id => M[id]));
-      const desc = plan.parts.map((id, i) => `${V.SLOT[idea.slots[i]].name} — ${M[id].name}`).join(', ');
+      const parts = plan.parts.map((id, i) => [idea.slots[i], id]);
       const cur = this.devices[plan.idea];
       if (ev.works) {
         if (!cur || ev.quality > cur.quality + 0.05) {
           const isNew = !cur;
-          const name = plan.name || (isNew ? idea.name : `${idea.name} (вдосконалений)`);
-          this.devices[plan.idea] = { idea: plan.idea, parts: plan.parts, quality: ev.quality, inventor: n.id, day: this.day(), name, extra: ev.extra };
+          const dev = { idea: plan.idea, parts: plan.parts, quality: ev.quality, inventor: n.id, day: this.day(), custom: plan.name || null, improved: !isNew, extra: ev.extra };
+          this.devices[plan.idea] = dev;
           n.know.add('d:' + plan.idea);
-          n.inventions.push(name);
+          if (!n.inventions.includes(plan.idea)) n.inventions.push(plan.idea);
           if (idea.structure) this.buildStructure(plan.idea, plan.parts, ev);
           if (isNew) {
             const bonus = Math.round(R.invent * Math.min(1.2, ev.quality));
-            this.reward(n, bonus, 'новий винахід працює');
-            this.discoveries.push({ day: this.day(), kind: 'device', id: plan.idea, name, by: n.id, how: desc, why: idea.effect, quality: ev.quality, extra: ev.extra });
-            const v = ev.extra && ev.extra.volts ? ` Напруга ${ev.extra.volts.toFixed(2)} В.` : '';
-            this.log(`★ ${n.name} винаходить: ${name}! (${desc}) — працює, якість ${ev.quality}.${v}`, 'discovery', n);
-            n.thought = `Мій ${idea.name} працює!`;
+            this.reward(n, bonus, 'invent');
+            this.discoveries.push({ day: this.day(), kind: 'device', id: plan.idea, dev: Object.assign({}, dev), by: n.id, how: msg('raw', { s: '' }), parts, quality: ev.quality, extra: ev.extra });
+            const volts = ev.extra && ev.extra.volts ? ev.extra.volts.toFixed(2) : null;
+            this.log(msg('log.invent', { n: n.name, dev: Object.assign({}, dev), parts, q: ev.quality, volts }), 'discovery', n);
+            think(n, 'th.invent', { idea: plan.idea });
           } else {
-            this.reward(n, R.improve, 'покращив винахід');
-            this.discoveries.push({ day: this.day(), kind: 'improve', id: plan.idea, name, by: n.id, how: desc, quality: ev.quality });
-            this.log(`${n.name} вдосконалює ${idea.name}: ${desc}. Якість ${cur.quality} → ${ev.quality}.`, 'improve', n);
+            this.reward(n, R.improve, 'improve');
+            this.discoveries.push({ day: this.day(), kind: 'improve', id: plan.idea, dev: Object.assign({}, dev), by: n.id, parts, quality: ev.quality });
+            this.log(msg('log.improve', { n: n.name, idea: plan.idea, parts, q0: cur.quality, q1: ev.quality }), 'improve', n);
           }
           if (plan.idea === 'kiln') n.hints.wall = false;
         } else {
           n.know.add('d:' + plan.idea);
-          this.reward(n, 2, 'відтворив відому конструкцію');
-          n.thought = `Мій ${idea.name} не кращий за наявний.`;
+          this.reward(n, 2, 'copied');
+          think(n, 'th.notBetter', { idea: plan.idea });
           n.failures.add(sig);
         }
         return;
       }
       n.failures.add(sig);
-      const weak = V.SLOT[ev.weakSlot].name;
+      const weak = ev.weakSlot;
       if (ev.partial) {
-        this.reward(n, R.partial, 'майже вийшло');
-        n.thought = `${idea.name} майже працює, але ${weak} підводить.`;
-        this.log(`${n.name} пробує ${idea.name} (${desc}) — майже, але ${weak} не годиться.`, 'try', n);
+        this.reward(n, R.partial, 'partial');
+        think(n, 'th.partial', { idea: plan.idea, slot: weak });
+        this.log(msg('log.partial', { n: n.name, idea: plan.idea, parts, slot: weak }), 'try', n);
       } else {
-        this.reward(n, R.fail, 'спроба');
-        n.thought = `${idea.name} з такого не вийде: ${weak} нікуди не годиться.`;
+        this.reward(n, R.fail, 'fail');
+        think(n, 'th.fail', { idea: plan.idea, slot: weak });
       }
       return;
     }
@@ -394,15 +402,15 @@
     if (plan.type === 'alloy' || plan.type === 'composite') return this.makeMaterial(n, plan, T);
   };
 
-  P.fail = function (n, why, plan, gatherNeeded) {
-    n.thought = `Не можу почати: ${why}.`;
-    this.reward(n, 0.2, 'спроба');
+  P.fail = function (n, missing, plan) {
+    think(n, 'th.cantStart', { m: missing });
+    this.reward(n, 0.2, 'fail');
     if (plan) n.goalMats = (plan.inputs || plan.parts || []).filter(id => this.stock(id) < 2 && V.BASE_RESOURCES.includes(id));
   };
 
   P.buildStructure = function (idea, parts, ev) {
     const m = M[parts[0]];
-    if (idea === 'kiln') { this.structures.kiln = { wall: parts[0], hp: m.hp, name: m.name }; }
+    if (idea === 'kiln') { this.structures.kiln = { wall: parts[0], hp: m.hp }; }
     else if (idea === 'bellows') this.structures.bellows = { parts };
     else if (idea === 'pen') this.structures.pen = { parts };
     else if (idea === 'house') { this.structures.house = { parts }; this.houses = Math.max(this.houses, 1); }
@@ -415,13 +423,13 @@
     const isAlloy = plan.type === 'alloy';
     const a = isAlloy ? plan.base : plan.matrix, b = isAlloy ? plan.add : plan.filler;
     const need = isAlloy ? (b === 'charcoal' ? 1100 : Math.max(M[a].mp, M[b].mp)) : 0;
-    if (!this.take(a)) return this.fail(n, `забракло: ${M[a].name}`, plan);
-    if (!this.take(b)) { this.give(a); return this.fail(n, `забракло: ${M[b].name}`, plan); }
+    if (!this.take(a)) return this.fail(n, a, plan);
+    if (!this.take(b)) { this.give(a); return this.fail(n, b, plan); }
     if (isAlloy && T.t < need) {
       n.hints.hotter = true;
-      this.reward(n, 2, 'цінне спостереження');
-      n.thought = `${M[a].name} і ${M[b].name} не змішуються — треба розплавити, а це ${need}°C.`;
-      this.log(`${n.name} намагається сплавити ${M[a].name} з ${M[b].name}, але печі не вистачає жару (${Math.round(T.t)}°C).`, 'hint', n);
+      this.reward(n, 2, 'observe');
+      think(n, 'th.needHeat', { m: a, m2: b === 'charcoal' ? 'carbon' : b, t: need });
+      this.log(msg('log.needHeat', { n: n.name, m: a, m2: b === 'charcoal' ? 'carbon' : b, t: Math.round(T.t) }), 'hint', n);
       this.checkIdeas(n);
       return;
     }
@@ -434,33 +442,33 @@
     if (existing) {
       this.give(existing.id, 2);
       this.learn(n, 'm:' + existing.id);
-      this.reward(n, 1, 'повторив рецепт');
-      n.thought = `Вийшов знайомий ${existing.name}.`;
+      this.reward(n, 1, 'recipe');
+      think(n, 'th.known', { m: existing.id });
       return;
     }
     // ще не досить міцне — розсипається
     if (props.tough < 0.4 || props.hard < 0.3) {
-      this.reward(n, R.fail, 'спроба');
-      n.thought = 'Суміш розсипалася на порох.';
-      this.log(`${n.name}: суміш ${V.describeComp(props.comp)} розсипалася.`, 'try', n);
+      this.reward(n, R.fail, 'fail');
+      think(n, 'th.crumble');
+      this.log(msg('log.crumble', { n: n.name, comp: props.comp }), 'try', n);
       return;
     }
     const real = V.matchReal(props.comp);
     const id = 'g' + (++this.genCount);
     const pool = Object.values(M).filter(m => this.worldKnown.has(m.id));
-    let name, desc;
+    let name, nearest = null, withComp = false, word = null;
     if (real) {
       name = real.name;
-      desc = `${real.note}. Склад: ${V.describeComp(props.comp)}.`;
+      // реальна назва вже зайнята іншою пропорцією — показуємо ще й склад
+      if (Object.values(M).some(m => m.realIdx === real.idx)) withComp = true;
     } else {
-      name = plan.name && plan.name.length < 30 ? plan.name : V.inventWord(this.rnd);
-      const near = V.nearest(props, pool.concat(V.REAL_PROPS || []));
-      desc = `Нового типу: ${isAlloy ? 'сплав' : 'композит'} ${V.describeComp(props.comp)}. У реальному світі окремої назви не має. Найближчий за властивостями: ${near ? near.name : '—'}.`;
+      if (plan.name && plan.name.length < 30) name = plan.name; else { word = V.inventWord(this.rnd); name = word.join('-'); }
+      const near = V.nearest(props, pool);
+      nearest = near ? near.id : null;
+      if (Object.values(M).some(m => m.name === name)) withComp = true;
     }
-    // якщо реальна назва вже зайнята (інша пропорція того ж класу) — додаємо пропорцію
-    if (Object.values(M).some(m => m.name === name)) name = `${name} (${V.describeComp(props.comp)})`;
     const color = isAlloy ? mixColor(M[a].color, M[b] ? M[b].color : '#333', f) : mixColor(M[a].color, M[b].color, f);
-    const mat = Object.assign({ id, name, kind: isAlloy ? 'alloy' : 'composite', trans: 0, fuel: 0, food: 0, ion: 0, air: 0, binder: 0, plast: 0, hp: 0, mp: 0, cond: 0, pot: 0, sharp: 0, wp: 0 }, props, { sig: sigKey, real: !!real, desc, color, inventor: n.id, day: this.day() });
+    const mat = Object.assign({ id, name, kind: isAlloy ? 'alloy' : 'composite', trans: 0, fuel: 0, food: 0, ion: 0, air: 0, binder: 0, plast: 0, hp: 0, mp: 0, cond: 0, pot: 0, sharp: 0, wp: 0 }, props, { sig: sigKey, real: !!real, realIdx: real ? real.idx : null, nearest, withComp, word, color, inventor: n.id, day: this.day() });
     if (!mat.hp) mat.hp = mat.mp ? mat.mp - 100 : 300;
     if (isAlloy) mat.kind = 'metal', mat.alloy = true;
     M[id] = mat;
@@ -472,18 +480,16 @@
       if (sc < 0.6) continue;
       let best = 0;
       for (const m of pool) if (m.kind !== 'food' && m.kind !== 'ore') best = Math.max(best, V.SLOT[s].test(m));
-      if (sc > best + 0.05) usefulFor.push(V.SLOT[s].name);
+      if (sc > best + 0.05) usefulFor.push(s);
     }
     this.learn(n, 'm:' + id);
-    this.reward(n, real || usefulFor.length ? R.material : 4, 'створив новий матеріал');
-    if (usefulFor.length) this.reward(n, R.useful, 'новий матеріал працює краще за відомі');
+    this.reward(n, real || usefulFor.length ? R.material : 4, 'newMat');
+    if (usefulFor.length) this.reward(n, R.useful, 'useful');
     mat.usefulFor = usefulFor;
-    this.discoveries.push({ day: this.day(), kind: 'material', id, name, by: n.id, how: V.describeComp(props.comp), why: desc, real: !!real, useful: usefulFor });
-    const tag = real ? 'справжній матеріал' : 'невідомий у реальному світі';
-    const use = usefulFor.length ? ` Найкращий для: ${usefulFor.join(', ')}!` : '';
-    if (!real && !usefulFor.length) { this.log(`${n.name} змішує ${V.describeComp(props.comp)} і називає це «${name}». Поки незрозуміло, навіщо воно.`, 'try', n); n.thought = `«${name}»… цікаво, але навіщо?`; this.checkIdeas(n); return; }
-    this.log(`★ ${n.name} створює ${isAlloy ? 'сплав' : 'композит'} «${name}» (${tag}): ${V.describeComp(props.comp)}.${use}`, 'discovery', n);
-    n.thought = `Новий матеріал — «${name}»!`;
+    this.discoveries.push({ day: this.day(), kind: 'material', id, by: n.id, how: msg('raw', { s: '' }), comp: props.comp, real: !!real, useful: usefulFor });
+    if (!real && !usefulFor.length) { this.log(msg('log.junk', { n: n.name, comp: props.comp, m: id }), 'try', n); think(n, 'th.junk', { m: id }); this.checkIdeas(n); return; }
+    this.log(msg('log.newMat', { n: n.name, alloy: isAlloy, m: id, real: !!real, comp: props.comp, useful: usefulFor }), 'discovery', n);
+    think(n, 'th.newMat', { m: id });
     this.checkIdeas(n);
   };
 
@@ -498,11 +504,12 @@
     const rnd = this.rnd;
     const night = this.isNight();
     if (!isAdult(this, n)) {
-      if (night || n.energy < 30) return this.setTask(n, 'sleep');
       if (n.hunger > 55 && this.foodStock() > 0) return this.setTask(n, 'eat');
+      if (night || n.energy < 30) return this.setTask(n, 'sleep');
       return this.setTask(n, 'play');
     }
-    if ((night && n.energy < 90) || n.energy < 18) return this.setTask(n, 'sleep');
+    const starving = n.hunger > 75;
+    if (!starving && ((night && n.energy < 90) || n.energy < 18)) return this.setTask(n, 'sleep');
     if (n.hunger > 60) {
       if (this.foodStock() > 0) return this.setTask(n, 'eat');
       if (this.hasDev(n, 'net')) return this.setTask(n, 'fish');
@@ -569,31 +576,46 @@
     n.social = Math.min(100, n.social + 0.04);
     if (n.hunger >= 100) n.health -= 0.06; else n.health = Math.min(100, n.health + 0.01 * (this.structures.house ? 2 : 1));
     if (n.health <= 0) { this.die(n); return; }
+    // сильний голод перериває будь-яку справу, крім пошуку їжі
+    if (n.hunger > 85) {
+      if (n.carry && FOODS.includes(n.carry.id)) {           // з'їсти принесене просто на ходу
+        n.hunger = Math.max(0, n.hunger - M[n.carry.id].food); n.carry.k--;
+        if (n.carry.k <= 0) n.carry = null;
+      }
+      const t0 = n.task;
+      const forFood = t0 && (t0.type === 'eat' || t0.type === 'hunt' || t0.type === 'fish' || (t0.type === 'gather' && t0.res === 'berries'));
+      if (t0 && !forFood && !(t0.type === 'sleep' && n.energy < 5)) {
+        if (n.carry) { this.give(n.carry.id, n.carry.k); n.carry = null; }
+        if (t0.type === 'teach') { const m = this.npcs.find(x => x.id === t0.partner); if (m && m.task && m.task.type === 'listen') this.endTask(m); }
+        this.endTask(n);
+      }
+    }
     if (!n.task) this.decide(n);
     const t = n.task; t.t++;
     const camp = this.world.camp;
-    const toCamp = () => { const s = this.campSpot(n); return this.moveTo(n, s.x, s.y); };
+    // дійшов, якщо поруч із вогнищем або довго не може пробратися до свого місця
+    const toCamp = () => { const s = this.campSpot(n); return this.moveTo(n, s.x, s.y) || (t.t > 400 && Math.hypot(n.x - camp.x, n.y - camp.y) < 3.5); };
 
     switch (t.type) {
       case 'sleep':
-        if (t.phase === 0) { n.thought = 'Час відпочити.'; if (toCamp()) t.phase = 1; }
+        if (t.phase === 0) { think(n, 'th.rest'); if (toCamp() || t.t > 300) t.phase = 1; }   // не дійшов — спить, де застала втома
         else { n.energy = Math.min(100, n.energy + 0.22 * (this.structures.house ? 1.5 : 1)); if (n.energy >= 99 && !this.isNight()) this.endTask(n); if (!this.isNight() && n.energy > 85 && n.hunger > 70) this.endTask(n); }
         break;
       case 'eat':
-        if (toCamp()) {
+        if (toCamp() || t.t > 500) {   // заблукав — їсть зі своїх запасів у дорозі
           const f = FOODS.find(x => this.stock(x) > 0);
           if (f) {
             let food = M[f].food;
             if ((f === 'meat' || f === 'fish') && n.know.has('l:cook') && this.stock('wood') > 0) { food = M.cooked.food; this.take('wood'); }
             if (this.hasDev(n, 'vessel') && f !== 'berries') { food *= 1.3; this.useDev(n, 'vessel'); }
             this.take(f); n.hunger = Math.max(0, n.hunger - food);
-            n.thought = `Поїв: ${M[f].name}.`;
+            think(n, 'th.ate', { m: f });
           }
           this.endTask(n);
         }
         break;
       case 'play':
-        if (t.phase === 0) { t.tx = camp.x + (rnd() - 0.5) * 6; t.ty = camp.y + (rnd() - 0.5) * 6; t.phase = 1; n.thought = 'Граюся біля табору!'; }
+        if (t.phase === 0) { t.tx = camp.x + (rnd() - 0.5) * 6; t.ty = camp.y + (rnd() - 0.5) * 6; t.phase = 1; think(n, 'th.play'); }
         if (this.moveTo(n, t.tx, t.ty) || t.t > 200) this.endTask(n);
         break;
       case 'gather': this.doGather(n, t); break;
@@ -613,7 +635,7 @@
     if (t.phase === 0) {
       t.tile = this.findRes(n, t.res);
       if (!t.tile) { this.endTask(n); return; }
-      n.thought = `Іду по ${M[t.res].name}.`; t.phase = 1;
+      think(n, 'th.goGather', { m: t.res }); t.phase = 1;
     }
     if (t.phase === 1) { if (this.moveTo(n, t.tile.x + 0.5, t.tile.y + 0.5)) { t.phase = 2; t.w = 0; } if (t.t > 900) this.endTask(n); }
     else if (t.phase === 2) {
@@ -630,7 +652,7 @@
       }
     } else if (t.phase === 3) {
       const s = this.campSpot(n);
-      if (this.moveTo(n, s.x, s.y)) { this.give(n.carry.id, n.carry.k); this.reward(n, R.gather * n.carry.k, 'приніс до табору'); n.carry = null; this.endTask(n); }
+      if (this.moveTo(n, s.x, s.y)) { this.give(n.carry.id, n.carry.k); this.reward(n, R.gather * n.carry.k, 'gather'); n.carry = null; this.endTask(n); }
     }
   };
 
@@ -641,11 +663,11 @@
       for (const a of this.animals) if (a.alive && a.type !== 'wolf') { const d = Math.hypot(a.x - n.x, a.y - n.y) * (a.type === 'deer' ? 0.8 : 1); if (d < bd) { bd = d; best = a; } }
       if (!best) { this.endTask(n); return; }
       t.target = best.id; t.phase = 1; t.capture = canPen && best.type === 'rabbit' && this.pen < 12 && this.rnd() < 0.5;
-      n.thought = t.capture ? 'Спробую впіймати кроля живим.' : `Полюю на: ${V.ANIMALS[best.type].name}.`;
+      if (t.capture) think(n, 'th.capture'); else think(n, 'th.huntFor', { animal: best.type });
     }
     if (t.phase === 1) {
       const a = this.animals.find(x => x.id === t.target && x.alive);
-      if (!a || t.t > 700) { n.thought = 'Втекло…'; this.endTask(n); return; }
+      if (!a || t.t > 700) { think(n, 'th.escaped'); this.endTask(n); return; }
       this.moveTo(n, a.x, a.y, 1.25);
       if (Math.hypot(a.x - n.x, a.y - n.y) < 0.8 && this.rnd() < 0.15) {
         const spear = this.hasDev(n, 'spear') ? this.devQ('spear') * 0.45 : 0;
@@ -653,13 +675,13 @@
         if (this.rnd() < p) {
           a.alive = false; n.hunts++; n.skill.hunt += 0.08; this.stats.hunts++;
           if (spear) this.useDev(n, 'spear');
-          if (t.capture) { this.pen++; this.reward(n, 4, 'приручив тварину'); this.useDev(n, 'pen'); n.thought = 'Кріль у загороді!'; if (this.pen === 1) this.log(`${n.name} приводить першого прирученого кроля в загороду.`, 'life', n); this.endTask(n); return; }
+          if (t.capture) { this.pen++; this.reward(n, 4, 'tamed'); this.useDev(n, 'pen'); think(n, 'th.penned'); if (this.pen === 1) this.log(msg('log.firstPen', { n: n.name }), 'life', n); this.endTask(n); return; }
           const spec = V.ANIMALS[a.type];
           const knife = this.hasDev(n, 'knife') ? 1 : 0;
           if (knife) this.useDev(n, 'knife');
           n.carry = { id: 'meat', k: spec.meat, extra: [['hide', spec.hide + knife], ['bone', spec.bone + knife]] };
-          n.thought = 'Вдале полювання!'; t.phase = 2;
-          this.reward(n, R.hunt, 'вдале полювання');
+          think(n, 'th.goodHunt'); t.phase = 2;
+          this.reward(n, R.hunt, 'hunt');
           if (!n.know.has('m:hide')) this.learn(n, 'm:hide'); if (!n.know.has('m:bone') && spec.bone + knife > 0) this.learn(n, 'm:bone'); if (!n.know.has('m:meat')) this.learn(n, 'm:meat');
         }
       }
@@ -674,7 +696,7 @@
   };
 
   P.doFish = function (n, t) {
-    if (t.phase === 0) { t.tile = this.waterEdge(n); if (!t.tile) { this.endTask(n); return; } t.phase = 1; n.thought = 'Йду рибалити.'; }
+    if (t.phase === 0) { t.tile = this.waterEdge(n); if (!t.tile) { this.endTask(n); return; } t.phase = 1; think(n, 'th.goFish'); }
     if (t.phase === 1) { if (this.moveTo(n, t.tile.x + 0.5, t.tile.y + 0.5)) { t.phase = 2; t.w = 0; } if (t.t > 900) this.endTask(n); }
     else if (t.phase === 2) {
       t.w++;
@@ -684,8 +706,8 @@
         const q = this.devQ('net') * (this.hasDev(n, 'raft') ? 2 : 1);
         const k = water ? Math.min(Math.floor(water.fish), Math.max(1, Math.round(q * 2))) : 0;
         this.useDev(n, 'net'); if (this.hasDev(n, 'raft')) this.useDev(n, 'raft');
-        if (k > 0) { water.fish -= k; n.carry = { id: 'fish', k }; this.stats.fish += k; this.reward(n, 1.5, 'улов'); n.thought = `Упіймав рибу (${k}).`; t.phase = 3; }
-        else { n.thought = 'Не клює.'; this.endTask(n); }
+        if (k > 0) { water.fish -= k; n.carry = { id: 'fish', k }; this.stats.fish += k; this.reward(n, 1.5, 'catch'); think(n, 'th.caught', { k }); t.phase = 3; }
+        else { think(n, 'th.noBite'); this.endTask(n); }
       }
     } else if (t.phase === 3) {
       const s = this.campSpot(n);
@@ -703,12 +725,12 @@
         if (d > 8 && d < 34) { t.tx = tile.x + 0.5; t.ty = tile.y + 0.5; break; }
       }
       if (t.tx === undefined) { this.endTask(n); return; }
-      t.phase = 1; n.thought = 'Цікаво, що там, за пагорбами?';
+      t.phase = 1; think(n, 'th.explore');
     }
     if (t.phase === 1) {
       if (this.moveTo(n, t.tx, t.ty) || t.t > 800) {
         const before = n.know.size; this.look(n, 4);
-        if (n.know.size === before) this.reward(n, 0.3, 'прогулянка'); else this.reward(n, R.explore, 'дослідив місцевість');
+        if (n.know.size === before) this.reward(n, 0.3, 'walk'); else this.reward(n, R.explore, 'explore');
         t.phase = 2;
       }
     } else if (t.phase === 2) { if (this.moveTo(n, this.world.camp.x, this.world.camp.y)) this.endTask(n); }
@@ -721,17 +743,17 @@
       const opts = this.experimentOptions(n);
       t.opts = opts;
       if (V.LLM && V.LLM.canPlan()) {
-        t.phase = 1; t.waitFrom = this.tick; n.thought = 'Обмірковую ідею…';
+        t.phase = 1; t.waitFrom = this.tick; think(n, 'th.thinking');
         V.LLM.planExperiment(this, n, opts).then(p => { t.llmPlan = p || 'none'; }).catch(() => { t.llmPlan = 'none'; });
         return;
       }
       t.plan = this.rulePlan(n, opts); t.phase = 2; t.w = 0;
-      if (!t.plan) { n.thought = 'Бракує матеріалів для дослідів.'; n.goalMats = ['clay', 'flint', 'stone', 'fiber'].filter(id => n.know.has('m:' + id)); this.endTask(n); return; }
-      n.thought = planText(t.plan);
+      if (!t.plan) { think(n, 'th.noMats'); n.goalMats = ['clay', 'flint', 'stone', 'fiber'].filter(id => n.know.has('m:' + id)); this.endTask(n); return; }
+      n.thought = planText(t.plan); n.thoughtLLM = false;
     }
     if (t.phase === 1) {
-      if (t.llmPlan && t.llmPlan !== 'none') { t.plan = t.llmPlan; n.llmNote = t.plan.thought || ''; t.phase = 2; t.w = 0; n.thought = t.plan.thought || planText(t.plan); }
-      else if (t.llmPlan === 'none' || this.tick - t.waitFrom > 600) { t.plan = this.rulePlan(n, t.opts); t.phase = 2; t.w = 0; if (!t.plan) { this.endTask(n); return; } n.thought = planText(t.plan); }
+      if (t.llmPlan && t.llmPlan !== 'none') { t.plan = t.llmPlan; t.phase = 2; t.w = 0; if (t.plan.thought) { n.thought = msg('raw', { s: t.plan.thought }); n.thoughtLLM = true; } else { n.thought = planText(t.plan); n.thoughtLLM = false; } }
+      else if (t.llmPlan === 'none' || this.tick - t.waitFrom > 600) { t.plan = this.rulePlan(n, t.opts); t.phase = 2; t.w = 0; if (!t.plan) { this.endTask(n); return; } n.thought = planText(t.plan); n.thoughtLLM = false; }
       return;
     }
     if (t.phase === 2) {
@@ -740,11 +762,10 @@
     }
   };
   function planText(p) {
-    if (p.type === 'heat') return `Спробую нагріти: ${p.inputs.map(id => M[id].name).join(' + ')}.`;
-    if (p.type === 'build') return `Майструю ${V.IDEAS[p.idea].name}: ${p.parts.map(id => M[id].name).join(', ')}.`;
-    if (p.type === 'alloy') return `Сплавляю ${M[p.base].name} з ${p.add === 'charcoal' ? 'вуглецем' : M[p.add].name}.`;
-    if (p.type === 'composite') return `Змішую ${M[p.matrix].name} з ${M[p.filler].name}.`;
-    return 'Думаю.';
+    if (p.type === 'heat') return msg('plan.heat', { ms: p.inputs });
+    if (p.type === 'build') return msg('plan.build', { idea: p.idea, ms: p.parts });
+    if (p.type === 'alloy') return msg('plan.alloy', { m: p.base, m2: p.add === 'charcoal' ? 'carbon' : p.add });
+    return msg('plan.comp', { m: p.matrix, m2: p.filler });
   }
 
   P.teachable = function (a, b) {
@@ -755,15 +776,6 @@
     return out;
     function rank(k) { return k.startsWith('d:') ? 4 : k.startsWith('l:') ? 3 : k.startsWith('i:') ? 2 : 1; }
   };
-  V.knowName = function (k) {
-    const id = k.slice(2);
-    if (k.startsWith('m:')) return M[id] ? M[id].name : id;
-    if (k.startsWith('d:')) return 'як зробити: ' + (V.IDEAS[id] ? V.IDEAS[id].name : id);
-    if (k.startsWith('i:')) return 'ідея: ' + (V.IDEAS[id] ? V.IDEAS[id].name : id);
-    if (k.startsWith('l:')) { const l = V.LAWS.find(x => x.id === id); return l ? 'закон: ' + l.inputs.map(x => M[x].name).join('+') + ' → ' + M[l.out].name : id; }
-    return k;
-  };
-
   P.doTeach = function (n, t) {
     if (t.phase === 0) {
       let best = null, bs = -1;
@@ -775,7 +787,7 @@
         if (s > bs) { bs = s; best = m; }
       }
       if (!best) { this.endTask(n); return; }
-      t.partner = best.id; t.phase = 1; n.thought = `Іду поговорити. Співрозмовник: ${best.name}.`;
+      t.partner = best.id; t.phase = 1; think(n, 'th.talkTo', { n: best.name });
     }
     const m = this.npcs.find(x => x.id === t.partner);
     if (!m) { this.endTask(n); return; }
@@ -793,20 +805,20 @@
       t.w++;
       if (t.w >= 70) {
         let learned = 0;
-        for (const k of t.items) if (this.learn(m, k, 'навчився в іншого')) { learned++; this.reward(m, R.taught, 'мене навчили'); }
-        if (learned) { this.reward(n, R.teach * learned, 'допоміг іншому розвиватися'); n.taughtCount += learned; n.skill.teach += 0.1 * learned; this.stats.taught += learned; }
-        else this.reward(n, 1, 'гарна розмова');
+        for (const k of t.items) if (this.learn(m, k, 'taughtBy')) { learned++; this.reward(m, R.taught, 'wasTaught'); }
+        if (learned) { this.reward(n, R.teach * learned, 'teach'); n.taughtCount += learned; n.skill.teach += 0.1 * learned; this.stats.taught += learned; }
+        else this.reward(n, 1, 'chat');
         // допомога голодному
         if (m.hunger > 55 && this.foodStock() > 0) {
           const f = FOODS.find(x => this.stock(x) > 0); this.take(f); m.hunger = Math.max(0, m.hunger - M[f].food);
-          this.reward(n, R.help, 'нагодував іншого');
-          if (this.rnd() < 0.15) this.log(`${n.name} помічає, що ${m.name} ${g(m, 'голодний', 'голодна')}, і ділиться їжею.`, 'help', n);
+          this.reward(n, R.help, 'fed');
+          if (this.rnd() < 0.15) this.log(msg('log.help', { n: n.name, n2: m.name }), 'help', n);
         }
         n.social = Math.max(0, n.social - 50); m.social = Math.max(0, m.social - 40);
         n.friends[m.id] = (n.friends[m.id] || 0) + 8; m.friends[n.id] = (m.friends[n.id] || 0) + 8;
         if (t.lines && t.lines.length) {
           n.lastLine = t.lines[0]; if (t.lines[1]) m.lastLine = t.lines[1];
-          if (learned && this.rnd() < 0.5) this.log(`${n.name}: «${t.lines[0]}»${t.lines[1] ? ` — ${m.name}: «${t.lines[1]}»` : ''}`, 'talk', n);
+          if (learned && this.rnd() < 0.5) this.log(msg('log.talk', { n: n.name, n2: m.name, a: t.lines[0], b: t.lines[1] || null }), 'talk', n);
         }
         if (m.task && m.task.type === 'listen') this.endTask(m);
         this.endTask(n);
@@ -817,17 +829,13 @@
   P.dialogue = function (a, b, items) {
     const rnd = this.rnd;
     if (!items.length) {
-      const small = ['Як тобі сьогоднішній день?', 'Бачив, скільки кролів на луці?', 'Вогонь сьогодні гарно горить.', 'Чула, як вовки вили вночі?'];
-      const ans = ['Добрий день, працюємо!', 'Ага, треба б на них полювати.', 'Тепло — це головне.', 'Тримаймося ближче до вогню.'];
-      const i = Math.floor(rnd() * small.length); return [small[i], ans[i]];
+      const i = Math.floor(rnd() * 4); return [msg('small.' + i), msg('ans.' + i)];
     }
-    const k = items[0], name = V.knowName(k);
-    const id = k.slice(2);
-    if (k.startsWith('d:')) { const d = this.devices[id]; return [`Дивись, ${V.IDEAS[id].name} робиться так: ${d ? d.parts.map(x => M[x].name).join(', ') : ''}.`, 'О, тепер і я так зможу!']; }
-    if (k.startsWith('l:')) { const l = V.LAWS.find(x => x.id === id); return [`Якщо нагріти ${l.inputs.map(x => M[x].name).join(' з ')}, вийде ${M[l.out].name}.`, 'Не може бути! Треба спробувати.']; }
-    if (k.startsWith('i:')) return [`Я думаю, як ${V.IDEAS[id].verb}. Може, ${V.IDEAS[id].name}?`, 'Цікава думка…'];
-    const m = M[id];
-    return [`Знаєш ${m.name}? ${m.desc ? m.desc.split('.')[0] : V.propLine(m)}.`, 'Запам\'ятаю.'];
+    const k = items[0], id = k.slice(2);
+    if (k.startsWith('d:')) { const d = this.devices[id]; return [msg('dlg.design', { idea: id, ms: d ? d.parts : [] }), msg('dlg.designA')]; }
+    if (k.startsWith('l:')) { const l = V.LAWS.find(x => x.id === id); return [msg('dlg.law', { ms: l.inputs, m: l.out, cold: l.minT === 0 }), msg('dlg.lawA')]; }
+    if (k.startsWith('i:')) return [msg('dlg.idea', { idea: id }), msg('dlg.ideaA')];
+    return [msg('dlg.mat', { m: id, infoMat: id }), msg('dlg.matA')];
   };
 
   P.doBuild = function (n, t) {
@@ -836,16 +844,16 @@
       if (!d) { this.endTask(n); return; }
       for (const id of d.parts) if (this.stock(id) < 2) { n.goalMats = d.parts.filter(x => V.BASE_RESOURCES.includes(x)); this.endTask(n); return; }
       for (const id of d.parts) this.take(id, 2);
-      t.phase = 1; t.w = 0; n.thought = 'Будую новий дім.';
+      t.phase = 1; t.w = 0; think(n, 'th.buildHouse');
     }
     if (t.phase === 1) {
       const s = { x: this.world.camp.x - 2, y: this.world.camp.y + 1.5 };
-      if (this.moveTo(n, s.x, s.y)) { t.w++; if (t.w > 120) { this.houses++; this.reward(n, R.build, 'збудував для всіх'); this.log(`${n.name} добудовує ще один дім. Тепер їх ${this.houses}.`, 'life', n); this.endTask(n); } }
+      if (this.moveTo(n, s.x, s.y)) { t.w++; if (t.w > 120) { this.houses++; this.reward(n, R.build, 'built'); this.log(msg('log.house', { n: n.name, k: this.houses }), 'life', n); this.endTask(n); } }
     }
   };
 
   P.die = function (n) {
-    this.log(`${n.name} не ${g(n, 'пережив', 'пережила')} голоду. Поселення сумує.`, 'death', n);
+    this.log(msg('log.death', { n: n.name }), 'death', n);
     this.dead.push(n); this.npcs = this.npcs.filter(x => x !== n);
   };
 
@@ -859,9 +867,9 @@
       let spread = 0;
       for (const n of this.npcs) {
         const miss = [...pool].filter(k => !n.know.has(k));
-        for (let i = 0; i < 3 && miss.length; i++) { const k = miss.splice(Math.floor(rnd() * miss.length), 1)[0]; if (this.learn(n, k, 'прочитав таблички')) spread++; }
+        for (let i = 0; i < 3 && miss.length; i++) { const k = miss.splice(Math.floor(rnd() * miss.length), 1)[0]; if (this.learn(n, k, 'readTablets')) spread++; }
       }
-      if (spread) for (const w of writers) this.reward(w, spread * 0.3, 'таблички вчать інших');
+      if (spread) for (const w of writers) this.reward(w, spread * 0.3, 'tablets');
     }
     const adults = this.npcs.filter(n => isAdult(this, n));
     if (this.npcs.length < 22 && this.foodStock() >= this.npcs.length * 2 && rnd() < 0.45 && adults.length >= 2) {
@@ -871,7 +879,7 @@
         const c = this.addNPC(pair);
         c.x = this.world.camp.x; c.y = this.world.camp.y;
         this.stats.births++;
-        this.log(`У ${pair[0].name} і ${pair[1].name} народжується дитина — ${c.name}.`, 'birth', c);
+        this.log(msg('log.birth', { n: pair[0].name, n2: pair[1].name, n3: c.name }), 'birth', c);
       }
     }
     this.updateEra();
@@ -880,14 +888,14 @@
   P.updateEra = function () {
     const has = id => this.worldKnown.has(id);
     const anyAlloy = pred => Object.values(M).some(m => m.alloy && this.worldKnown.has(m.id) && pred(m));
-    let era = 'Кам\'яна доба';
-    if (has('ceramic')) era = 'Доба кераміки';
-    if (has('copper')) era = 'Мідна доба';
-    if (anyAlloy(m => m.comp.some(c => c[0] === 'tin') && m.comp.some(c => c[0] === 'copper'))) era = 'Бронзова доба';
-    if (has('iron')) era = 'Залізна доба';
-    if (has('glass') && has('iron')) era = 'Доба скла й заліза';
-    if (this.structures.cell) era = 'Електрична доба';
-    if (era !== this.era) { this.era = era; this.log(`Настає нова епоха: ${era}.`, 'era'); }
+    let era = 'stone';
+    if (has('ceramic')) era = 'ceramic';
+    if (has('copper')) era = 'copper';
+    if (anyAlloy(m => m.comp.some(c => c[0] === 'tin') && m.comp.some(c => c[0] === 'copper'))) era = 'bronze';
+    if (has('iron')) era = 'iron';
+    if (has('glass') && has('iron')) era = 'glass';
+    if (this.structures.cell) era = 'electric';
+    if (era !== this.era) { this.era = era; this.log(msg('log.era', { era }), 'era'); }
   };
 
   P.step = function () {

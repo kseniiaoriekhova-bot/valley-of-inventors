@@ -59,7 +59,8 @@ h1 { font: 700 clamp(18px, 2.6vw, 26px)/1.1 var(--display); margin: 0; letter-sp
 .clock { display: flex; align-items: center; gap: 8px; margin-left: auto; font: 600 13px var(--mono); font-variant-numeric: tabular-nums; }
 .sun { width: 54px; height: 10px; border-radius: 99px; background: linear-gradient(90deg, #1d2a4a, #f2c56b 30%, #f7e3a1 50%, #f2c56b 70%, #1d2a4a); position: relative; overflow: hidden; }
 .sun::after { content: ''; position: absolute; top: -1px; left: var(--p, 0%); width: 3px; height: 12px; background: var(--ink); }
-.controls { display: flex; gap: 4px; }
+.controls, .langs { display: flex; gap: 4px; }
+.langs .ctl { min-width: 36px; }
 .ctl { border: 1px solid var(--line); background: var(--panel); border-radius: 8px; padding: 6px 10px; min-width: 40px; font: 600 12px var(--mono); }
 .ctl.on { background: var(--ink); color: var(--bg); border-color: var(--ink); }
 
@@ -76,6 +77,13 @@ h1 { font: 700 clamp(18px, 2.6vw, 26px)/1.1 var(--display); margin: 0; letter-sp
 .zoom { position: absolute; right: 8px; bottom: 8px; display: flex; gap: 4px; }
 .zoom .ctl { background: color-mix(in srgb, var(--panel) 88%, transparent); min-width: 34px; font-size: 15px; padding: 4px 8px; }
 canvas { display: block; touch-action: manipulation; cursor: pointer; max-width: none; }
+.strip { display: flex; gap: 6px; overflow-x: auto; padding: 8px 2px 4px; scrollbar-width: thin; overscroll-behavior-x: contain; }
+.who-chip { flex: 0 0 auto; display: grid; grid-template-columns: auto auto; grid-template-rows: auto auto; column-gap: 7px; align-items: center; text-align: left; border: 1px solid var(--line); background: var(--panel); border-radius: 10px; padding: 5px 10px 5px 8px; }
+.who-chip .dot { grid-row: 1 / 3; }
+.who-chip .dot.small { width: 9px; height: 9px; }
+.who-chip .wn { font-weight: 500; font-size: 13px; line-height: 1.2; }
+.who-chip .wa { font-size: 11px; color: var(--muted); line-height: 1.2; }
+.who-chip.on { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
 .legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; color: var(--muted); margin: 8px 2px 0; }
 .legend span { display: inline-flex; align-items: center; gap: 6px; }
 .lg { width: 10px; height: 10px; border-radius: 50%; display: inline-block; border: 1px solid rgba(0,0,0,0.3); }
@@ -126,7 +134,11 @@ h3 { font-size: 13px; margin: 14px 0 6px; color: var(--muted); font-weight: 500;
 .person { border: 1px solid var(--line); border-radius: var(--r); padding: 12px; margin-bottom: 14px; background: var(--bg); }
 .person .head { display: flex; align-items: center; gap: 10px; }
 .person .head .nm { font: 600 16px var(--display); }
-.person .close { margin-left: auto; background: none; border: 1px solid var(--line); border-radius: 6px; padding: 2px 8px; }
+.person .head { flex-wrap: wrap; }
+.person .nav { margin-left: auto; display: flex; gap: 4px; }
+.iconbtn { background: none; border: 1px solid var(--line); border-radius: 6px; min-width: 30px; height: 28px; padding: 0 8px; font-size: 14px; line-height: 1; }
+.follow { margin-top: 8px; border: 1px solid var(--line); background: none; border-radius: 99px; padding: 4px 12px; font-size: 12px; }
+.follow.on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
 .thought { margin: 8px 0; padding: 8px 10px; background: var(--panel); border-radius: 8px; font-size: 13px; }
 .thought.llm::before { content: 'LLM · '; font: 600 10px var(--mono); color: var(--teal); }
 .meters { display: grid; grid-template-columns: auto minmax(0, 1fr) 34px; gap: 4px 8px; align-items: center; font-size: 12px; }
@@ -161,7 +173,7 @@ h3 { font-size: 13px; margin: 14px 0 6px; color: var(--muted); font-weight: 500;
 .matinfo { margin: 10px 0; padding: 10px; border-radius: 8px; background: var(--bg); border: 1px solid var(--line); font-size: 13px; }
 
 /* мозок */
-.presets { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin: 10px 0; }
+.presets { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; margin: 10px 0; }
 .preset { border: 1px solid var(--line); background: var(--bg); border-radius: 8px; padding: 8px; text-align: left; display: grid; gap: 2px; min-width: 0; }
 .preset b { font-weight: 600; font-size: 13px; }
 .preset span { font-size: 11px; color: var(--muted); line-height: 1.3; }
@@ -189,58 +201,63 @@ code { font: 12px var(--mono); background: var(--soft); padding: 1px 5px; border
 <body>
 <header class="bar">
   <div class="brand">
-    <h1>Долина винахідників</h1>
-    <span class="era" id="era">Кам'яна доба</span>
+    <h1 data-i18n="title">Долина винахідників</h1>
+    <span class="era" id="era"></span>
   </div>
   <div class="clock">
-    <span class="day" id="day">День 1</span>
+    <span class="day" id="day"></span>
     <span class="sun" id="sun" aria-hidden="true"></span>
   </div>
-  <div class="controls" role="group" aria-label="Швидкість часу">
-    <button id="pause" class="ctl" aria-label="Пауза">❚❚</button>
+  <div class="controls" role="group" data-i18n-aria="aria.speed">
+    <button id="pause" class="ctl">❚❚</button>
     <button class="ctl spd" data-s="1">1×</button>
     <button class="ctl spd" data-s="4">4×</button>
     <button class="ctl spd" data-s="15">15×</button>
     <button class="ctl spd" data-s="50">50×</button>
   </div>
+  <div class="langs" role="group" aria-label="Мова / Sprache">
+    <button class="ctl lang" data-lang="uk" lang="uk">UK</button>
+    <button class="ctl lang" data-lang="de" lang="de">DE</button>
+  </div>
 </header>
 
-<section class="stats" id="stats" aria-label="Стан поселення"></section>
+<section class="stats" id="stats"></section>
 
 <main class="layout">
   <div class="stage">
     <div class="canvas-box">
-      <div class="canvas-wrap" id="canvasWrap"><canvas id="world" aria-label="Карта долини"></canvas></div>
-      <div class="zoom" role="group" aria-label="Масштаб">
-        <button class="ctl" id="zoomIn" aria-label="Наблизити">＋</button>
-        <button class="ctl" id="zoomOut" aria-label="Віддалити">－</button>
+      <div class="canvas-wrap" id="canvasWrap"><canvas id="world" data-i18n-aria="mapLabel"></canvas></div>
+      <div class="zoom" role="group">
+        <button class="ctl" id="zoomIn" data-i18n-aria="zoomIn">＋</button>
+        <button class="ctl" id="zoomOut" data-i18n-aria="zoomOut">－</button>
       </div>
     </div>
+    <div class="strip" id="strip" role="listbox" data-i18n-aria="strip"></div>
     <p class="legend">
-      <span><i class="lg" style="background:#f1ece2"></i>кріль</span>
-      <span><i class="lg" style="background:#9a6a3a"></i>олень</span>
-      <span><i class="lg" style="background:#4b4f55"></i>вовк</span>
-      <span><i class="lg dia" style="background:#3fbf8f"></i>руда</span>
-      <span><i class="lg" style="background:#ffcf5a"></i>дослід</span>
-      <span class="hint">Торкніться поселенця, щоб стежити за ним.</span>
+      <span><i class="lg" style="background:#f1ece2"></i><span data-i18n="lg.rabbit"></span></span>
+      <span><i class="lg" style="background:#9a6a3a"></i><span data-i18n="lg.deer"></span></span>
+      <span><i class="lg" style="background:#4b4f55"></i><span data-i18n="lg.wolf"></span></span>
+      <span><i class="lg dia" style="background:#3fbf8f"></i><span data-i18n="lg.ore"></span></span>
+      <span><i class="lg" style="background:#ffcf5a"></i><span data-i18n="lg.exp"></span></span>
+      <span class="hint" data-i18n="lg.hint"></span>
     </p>
   </div>
 
   <aside class="panel">
     <nav class="tabs" role="tablist">
-      <button class="tab on" data-tab="chron" role="tab">Хроніка</button>
-      <button class="tab" data-tab="people" role="tab">Мешканці</button>
-      <button class="tab" data-tab="disc" role="tab">Відкриття</button>
-      <button class="tab" data-tab="brain" role="tab">Мозок</button>
+      <button class="tab on" data-tab="chron" role="tab" data-i18n="tab.chron"></button>
+      <button class="tab" data-tab="people" role="tab" data-i18n="tab.people"></button>
+      <button class="tab" data-tab="disc" role="tab" data-i18n="tab.disc"></button>
+      <button class="tab" data-tab="brain" role="tab" data-i18n="tab.brain"></button>
     </nav>
 
     <div class="pane on" id="pane-chron">
       <div class="chips" id="chronFilter">
-        <button class="chip on" data-f="all">Усе</button>
-        <button class="chip" data-f="discovery">Відкриття</button>
-        <button class="chip" data-f="idea">Ідеї</button>
-        <button class="chip" data-f="talk">Розмови</button>
-        <button class="chip" data-f="life">Життя</button>
+        <button class="chip on" data-f="all" data-i18n="f.all"></button>
+        <button class="chip" data-f="discovery" data-i18n="f.discovery"></button>
+        <button class="chip" data-f="idea" data-i18n="f.idea"></button>
+        <button class="chip" data-f="talk" data-i18n="f.talk"></button>
+        <button class="chip" data-f="life" data-i18n="f.life"></button>
       </div>
       <ol class="chron" id="chron"></ol>
     </div>
@@ -256,60 +273,569 @@ code { font: 12px var(--mono); background: var(--soft); padding: 1px 5px; border
 
     <div class="pane" id="pane-brain">
       <section class="card">
-        <h2>LLM-мозок</h2>
-        <p class="muted">Без LLM поселенці думають за правилами і вчаться на заохоченнях. З LLM безкоштовна відкрита модель вигадує їхні експерименти та розмови, а рушій фізики перевіряє, чи це справді працює.</p>
-        <div class="presets" role="group" aria-label="Готові налаштування">
-          <button class="preset" data-preset="openrouter"><b>OpenRouter</b><span>хмара, працює з телефона</span></button>
-          <button class="preset" data-preset="ollama"><b>Ollama</b><span>на твоєму комп'ютері</span></button>
-          <button class="preset" data-preset="lmstudio"><b>LM Studio</b><span>на твоєму комп'ютері</span></button>
+        <h2 data-i18n="llm.title"></h2>
+        <p class="muted" data-i18n="llm.intro"></p>
+        <div class="presets" role="group">
+          <button class="preset" data-preset="cloudflare"><b>Cloudflare</b><span data-i18n="p.cf"></span></button>
+          <button class="preset" data-preset="openrouter"><b>OpenRouter</b><span data-i18n="p.or"></span></button>
+          <button class="preset" data-preset="ollama"><b>Ollama</b><span data-i18n="p.ol"></span></button>
+          <button class="preset" data-preset="lmstudio"><b>LM Studio</b><span data-i18n="p.lm"></span></button>
         </div>
         <p class="presetnote" id="presetNote" hidden></p>
-        <label class="row switch"><input type="checkbox" id="llmOn"> <span>Під'єднати модель</span></label>
+        <label class="row switch"><input type="checkbox" id="llmOn"> <span data-i18n="llm.on"></span></label>
         <div class="grid2">
-          <label for="llmProv">Сервер</label>
-          <select id="llmProv"><option value="ollama">Ollama</option><option value="openai">OpenAI-сумісний (LM Studio, llama.cpp…)</option></select>
-          <label for="llmUrl">Адреса</label>
+          <label for="llmProv" data-i18n="llm.server"></label>
+          <select id="llmProv"><option value="ollama">Ollama</option><option value="openai" data-i18n="llm.compat"></option></select>
+          <label for="llmUrl" data-i18n="llm.url"></label>
           <input id="llmUrl" type="text" spellcheck="false">
-          <label for="llmModel">Модель</label>
+          <label for="llmModel" data-i18n="llm.model"></label>
           <input id="llmModel" type="text" spellcheck="false" list="llmModels">
           <datalist id="llmModels"></datalist>
-          <label for="llmKey">Ключ API</label>
-          <input id="llmKey" type="password" placeholder="не потрібен для Ollama">
+          <label for="llmKey" data-i18n="llm.key"></label>
+          <input id="llmKey" type="password">
         </div>
-        <label class="row"><input type="checkbox" id="llmPlans"> <span>Модель вигадує експерименти</span></label>
-        <label class="row"><input type="checkbox" id="llmChat"> <span>Модель пише розмови</span></label>
-        <div class="row gap"><button class="btn" id="llmTest">Перевірити з'єднання</button><span class="status" id="llmStatus"></span></div>
+        <label class="row"><input type="checkbox" id="llmPlans"> <span data-i18n="llm.plans"></span></label>
+        <label class="row"><input type="checkbox" id="llmChat"> <span data-i18n="llm.chat"></span></label>
+        <div class="row gap"><button class="btn" id="llmTest" data-i18n="llm.test"></button><span class="status" id="llmStatus"></span></div>
         <ol class="llmlog" id="llmLog"></ol>
       </section>
       <section class="card">
-        <h2>З телефона: OpenRouter</h2>
-        <ol class="steps">
-          <li>Зареєструйтеся на <a href="https://openrouter.ai/keys" target="_blank" rel="noopener">openrouter.ai/keys</a> і створіть ключ (безкоштовні моделі не потребують оплати, але мають ліміти запитів).</li>
-          <li>Відкрийте гру не з Claude, а зі звичайного сайту, наприклад GitHub Pages вашого репозиторію.</li>
-          <li>Натисніть угорі «OpenRouter», вставте ключ і натисніть «Перевірити з'єднання». Модель <code>openrouter/free</code> сама обирає доступну безкоштовну модель.</li>
-        </ol>
-        <h2 style="margin-top:14px">З комп'ютера: Ollama</h2>
-        <ol class="steps">
-          <li>Встановіть <b>Ollama</b> (ollama.com) і завантажте модель: <code>ollama pull qwen2.5:3b</code> (або <code>llama3.2:3b</code>, <code>gemma2:2b</code>; на сильнішому ПК — <code>qwen2.5:7b</code>).</li>
-          <li>Дозвольте сторінці звертатися до Ollama: <code>OLLAMA_ORIGINS="*" ollama serve</code> (Windows PowerShell: <code>$env:OLLAMA_ORIGINS="*"; ollama serve</code>).</li>
-          <li>Відкрийте гру з файлу <code>index.html</code> із репозиторію у себе на комп'ютері, натисніть угорі «Ollama» й «Перевірити з'єднання».</li>
-        </ol>
-        <p class="muted">У веб-версії гри, відкритій із Claude, з'єднання зі сторонніми серверами заблоковані, тому там працює лише мозок на правилах. Ключ API зберігається лише у вашому браузері.</p>
+        <h2 data-i18n="how.title"></h2>
+        <ul class="plain">
+          <li data-i18n-html="how.cf"></li>
+          <li data-i18n-html="how.or"></li>
+          <li data-i18n-html="how.ol"></li>
+        </ul>
+        <p class="muted" data-i18n="how.note"></p>
       </section>
       <section class="card">
-        <h2>Як це влаштовано</h2>
+        <h2 data-i18n="about.title"></h2>
         <ul class="plain">
-          <li><b>Закони природи</b> — властивості матеріалів, температура полум'я, піч, міхи, межа жаростійкості стін, сплави та композити. Їх знає лише світ.</li>
-          <li><b>Ідеї</b> народжуються з проблем: «жару замало», «риба близько», «носити важко». Як саме втілити ідею, поселенці шукають самі.</li>
-          <li><b>Натхнення</b>: нове знання +2, навчити іншого +4, новий матеріал +15, матеріал кращий за відомі +20, робочий винахід до +40, покращення +10, невдача +1, бонус автору, коли інші користуються винаходом. Поселенці частіше роблять те, що приносить натхнення.</li>
-          <li><b>Нові матеріали</b>: якщо склад збігається з реальним (бронза, спекулум, сталь, саман…), матеріал отримує справжню назву; якщо ні — вигадану з поясненням і найближчим відомим аналогом.</li>
+          <li data-i18n-html="about.1"></li>
+          <li data-i18n-html="about.2"></li>
+          <li data-i18n-html="about.3"></li>
+          <li data-i18n-html="about.4"></li>
         </ul>
-        <div class="row gap"><button class="btn" id="newWorld">Новий світ</button><span class="muted" id="seedLbl"></span></div>
+        <div class="row gap"><button class="btn" id="newWorld" data-i18n="newWorld"></button><span class="muted" id="seedLbl"></span></div>
       </section>
     </div>
   </aside>
 </main>
 
+<script>
+/* ============================================================
+   Мови / Sprachen: українська (uk) і німецька (de)
+   Симуляція зберігає повідомлення як [ключ, параметри],
+   тож уся хроніка перекладається одразу при перемиканні мови.
+   ============================================================ */
+(function (V) {
+  'use strict';
+
+  let lang = 'uk';
+  try { lang = localStorage.getItem('valley.lang') || (/^de/i.test(navigator.language || '') ? 'de' : 'uk'); } catch (e) { /* без сховища */ }
+  if (lang !== 'uk' && lang !== 'de') lang = 'uk';
+  Object.defineProperty(V, 'lang', { get: () => lang });
+  V.setLang = function (l) { lang = l === 'de' ? 'de' : 'uk'; try { localStorage.setItem('valley.lang', lang); } catch (e) { /* ок */ } };
+
+  /* ---------- Імена ---------- */
+  const NAME_DE = {
+    'Олеся': 'Olesja', 'Тарас': 'Taras', 'Мирослава': 'Myroslawa', 'Богдан': 'Bohdan', 'Ярина': 'Jaryna', 'Остап': 'Ostap',
+    'Злата': 'Slata', 'Данило': 'Danylo', 'Леся': 'Lesja', 'Назар': 'Nasar', 'Устина': 'Ustyna', 'Орест': 'Orest',
+    'Марта': 'Marta', 'Ілько': 'Ilko', 'Соломія': 'Solomija', 'Захар': 'Sachar', 'Олекса': 'Oleksa', 'Дарина': 'Daryna',
+    'Роман': 'Roman', 'Христя': 'Chrystja', 'Іванна': 'Iwanna', 'Святослав': 'Swjatoslaw', 'Галя': 'Halja', 'Петро': 'Petro',
+    'Віра': 'Wira', 'Гнат': 'Hnat',
+  };
+  const FEMALE = new Set(['Олеся', 'Мирослава', 'Ярина', 'Злата', 'Леся', 'Устина', 'Марта', 'Соломія', 'Дарина', 'Христя', 'Іванна', 'Галя', 'Віра']);
+  V.isFemale = name => FEMALE.has(name);
+  V.nn = function (name) {
+    if (!name) return '';
+    if (lang === 'de') { if (NAME_DE[name]) return NAME_DE[name]; const m = /^Мешканець (\d+)$/.exec(name); if (m) return 'Bewohner ' + m[1]; }
+    return name;
+  };
+
+  /* ---------- Довідники ---------- */
+  const MAT_DE = {
+    wood: 'Holz', fiber: 'Pflanzenfaser', resin: 'Harz', stone: 'Stein', flint: 'Feuerstein', clay: 'Ton', sand: 'Sand',
+    limestone: 'Kalkstein', salt: 'Salz', water: 'Wasser', copper_ore: 'Kupfererz (Malachit)', tin_ore: 'Zinnerz (Kassiterit)',
+    lead_ore: 'Bleierz (Galenit)', iron_ore: 'Eisenerz (Hämatit)', coal: 'Steinkohle', berries: 'Beeren', meat: 'rohes Fleisch',
+    fish: 'Fisch', hide: 'Fell', bone: 'Knochen', cooked: 'gekochtes Essen', charcoal: 'Holzkohle', ceramic: 'Keramik',
+    brick: 'gebrannter Ziegel', quicklime: 'Branntkalk', mortar: 'Kalkteig', leather: 'gegerbtes Leder', copper: 'Kupfer',
+    tin: 'Zinn', lead: 'Blei', iron: 'Eisen (Luppe)', glass: 'Glas', carbon: 'Kohlenstoff',
+  };
+  const IDEA_DE = {
+    knife: ['Schneidwerkzeug', 'schneiden', 'sammelt schneller und verarbeitet Beute besser'],
+    spear: ['Speer', 'jagen', 'Jagd gelingt öfter'],
+    vessel: ['Gefäß', 'kochen', 'Gekochtes nährt mehr, man kann Wasser tragen'],
+    kiln: ['Ofen', 'die Glut halten', 'Glut ohne Luft und +150 °C'],
+    bellows: ['Blasebalg', 'Luft blasen', '+300 °C im Ofen'],
+    net: ['Netz', 'fischen', 'Fischfang'],
+    raft: ['Floß', 'schwimmen', 'doppelter Fischfang, ferne Ufer'],
+    cart: ['Karren', 'transportieren', 'trägt doppelt so viel'],
+    pen: ['Gehege', 'Tiere zähmen', 'gezähmte Tiere liefern Nahrung'],
+    house: ['Haus', 'warm wohnen', 'besserer Schlaf und Gesundheit'],
+    lens: ['Linse', 'genau hinsehen', 'Experimente 40 % schneller'],
+    tablet: ['Schreibtafeln', 'aufschreiben', 'Wissen der Tafeln geht nachts an alle im Lager'],
+    cell: ['galvanische Zelle', 'Strom gewinnen', 'Elektrizität: Licht im Lager bei Nacht'],
+  };
+  const SLOT_DE = {
+    edge: 'Klinge', point: 'Spitze', shaft: 'Griff', binding: 'Bindung', vessel: 'Gefäß', wall: 'Wand', membrane: 'Membran',
+    frame: 'Rahmen', float: 'Schwimmkörper', disc: 'Scheibe', binder: 'Bindemittel', lens: 'Linse', writable: 'Tafel',
+    electrode: 'Elektrode', electrolyte: 'Elektrolyt',
+  };
+  const LAW_DE = {
+    cook: 'Eiweiße denaturieren durch Hitze — das Essen wird nahrhafter',
+    cookfish: 'Hitze macht Fisch sicherer und nahrhafter',
+    char: 'Pyrolyse: ohne Luft verbrennt Holz nicht, sondern verkohlt',
+    ceramic: 'Sintern: Tonteilchen verwachsen und werden wasserdicht',
+    brick: 'Sand verringert die Schwindung, Sintern ergibt hitzefeste Ziegel',
+    lime: 'Kalzinierung: CaCO₃ → CaO + CO₂',
+    mortar: 'Kalklöschen: CaO + H₂O → Ca(OH)₂, das an der Luft aushärtet',
+    leather: 'Salz entzieht Feuchtigkeit und stoppt die Fäulnis — das Fell wird dicht und haltbar',
+    pb: 'Kohlenstoff entzieht dem Erz Schwefel und Sauerstoff, übrig bleibt Blei',
+    sn: 'SnO₂ + 2C → Sn + 2CO',
+    cu: 'Kohlenstoff reduziert Kupfer aus Malachit, und es schmilzt',
+    fe: 'Fe₂O₃ + 3CO → 2Fe + 3CO₂ im Rennofen',
+    glass: 'Kalk senkt den Schmelzpunkt von Quarz — es entsteht Glas',
+  };
+  const REAL_DE = [
+    ['Niedrigzinnbronze', 'frühe Bronze: etwas härter als Kupfer, gut schmiedbar'],
+    ['Bronze', 'klassische Zinnbronze der Bronzezeit — hart und zäh'],
+    ['Glockenbronze', 'sehr hart und klangvoll, aber spröde — daraus goss man Glocken'],
+    ['Speculum', 'Spiegelbronze: so hart und glänzend, dass man daraus Spiegel und Teleskope machte'],
+    ['Pewter (Zinngeschirr)', 'Zinnlegierung für Geschirr — weich und leicht schmelzbar'],
+    ['Zinn-Blei-Lot', 'schmilzt tiefer als beide Metalle — damit verbindet man andere Metalle'],
+    ['Bleihaltiges Pewter', 'billige Zinnlegierung mit Blei'],
+    ['Blei-Zinn-Legierung', 'schwere, weiche Legierung für Gewichte und Rohre'],
+    ['Schmiedeeisen', 'fast reines Eisen: zäh, aber eher weich'],
+    ['Weicher Stahl', 'kohlenstoffarmer Stahl — fest und gut formbar'],
+    ['Kohlenstoffstahl', 'harter Stahl, der eine Schneide gut hält'],
+    ['Gusseisen', 'viel Kohlenstoff: leicht schmelzbar, hart, aber spröde'],
+    ['Strohlehm', 'mit Stroh bewehrter Lehm — Baustoff seit Jahrtausenden'],
+    ['Gemagerter Ton', 'Ton mit Sand reißt beim Trocknen weniger'],
+    ['Kalkmörtel', 'Kalk mit Sand — der klassische Baumörtel'],
+    ['Opus signinum', 'Kalk mit zerstoßener Keramik — wasserfester römischer Mörtel'],
+    ['Harzkleber', 'Harz mit Kohle — uralter Kleber zum Befestigen von Spitzen'],
+  ];
+  const ERA = {
+    uk: { stone: 'Кам\'яна доба', ceramic: 'Доба кераміки', copper: 'Мідна доба', bronze: 'Бронзова доба', iron: 'Залізна доба', glass: 'Доба скла й заліза', electric: 'Електрична доба' },
+    de: { stone: 'Steinzeit', ceramic: 'Keramikzeit', copper: 'Kupferzeit', bronze: 'Bronzezeit', iron: 'Eisenzeit', glass: 'Zeit von Glas und Eisen', electric: 'Elektrisches Zeitalter' },
+  };
+  const ERA_SHORT = {
+    uk: { stone: 'Камінь', ceramic: 'Кераміка', copper: 'Мідь', bronze: 'Бронза', iron: 'Залізо', glass: 'Скло', electric: 'Електрика' },
+    de: { stone: 'Stein', ceramic: 'Keramik', copper: 'Kupfer', bronze: 'Bronze', iron: 'Eisen', glass: 'Glas', electric: 'Strom' },
+  };
+  V.ERA_KEYS = ['stone', 'ceramic', 'copper', 'bronze', 'iron', 'glass', 'electric'];
+  V.eraName = k => ERA[lang][k] || k;
+  V.eraShort = k => ERA_SHORT[lang][k] || k;
+  const ACT = {
+    uk: { gather: 'збирає', hunt: 'полює', fish: 'рибалить', experiment: 'експериментує', teach: 'навчає', build: 'будує', explore: 'досліджує', eat: 'їсть', sleep: 'спить', listen: 'слухає', play: 'грається', think: 'обмірковує' },
+    de: { gather: 'sammelt', hunt: 'jagt', fish: 'fischt', experiment: 'experimentiert', teach: 'lehrt', build: 'baut', explore: 'erkundet', eat: 'isst', sleep: 'schläft', listen: 'hört zu', play: 'spielt', think: 'denkt nach' },
+  };
+  V.act = t => ACT[lang][t] || t;
+  const ANIMAL = { uk: { rabbit: 'кріль', deer: 'олень', wolf: 'вовк' }, de: { rabbit: 'Kaninchen', deer: 'Hirsch', wolf: 'Wolf' } };
+  V.animalName = t => ANIMAL[lang][t] || t;
+  const KIND = {
+    uk: { organic: 'органіка', mineral: 'мінерал', ore: 'руда', fuel: 'паливо', food: 'їжа', liquid: 'рідина', ceramic: 'кераміка', metal: 'метал', composite: 'композит', alloy: 'сплав' },
+    de: { organic: 'organisch', mineral: 'Mineral', ore: 'Erz', fuel: 'Brennstoff', food: 'Nahrung', liquid: 'Flüssigkeit', ceramic: 'Keramik', metal: 'Metall', composite: 'Verbundstoff', alloy: 'Legierung' },
+  };
+  V.kindName = k => KIND[lang][k] || k;
+
+  /* Назва матеріалу з урахуванням мови */
+  V.mn = function (id) {
+    const M = V.MATERIALS, m = M && M[id];
+    if (id === 'carbon') return lang === 'de' ? 'Kohlenstoff' : 'вуглець';
+    if (!m) return id;
+    let base;
+    if (m.realIdx != null) base = lang === 'de' ? REAL_DE[m.realIdx][0] : V.REAL[m.realIdx].name;
+    else if (m.word) base = V.wordName(m.word);     // вигадане слово, записане складами
+    else if (m.inventor) base = m.name;            // назва, яку дала модель
+    else base = lang === 'de' ? (MAT_DE[id] || m.name) : m.name;
+    return m.withComp ? `${base} (${V.describeComp(m.comp)})` : base;
+  };
+  const SYL = { uk: ['ва', 'ре', 'лі', 'то', 'мі', 'ар', 'ко', 'ні', 'ус', 'да', 'ле', 'ри', 'са', 'ту', 'ен', 'ор', 'ві', 'ла', 'мо', 'зе'],
+    de: ['wa', 're', 'li', 'to', 'mi', 'ar', 'ko', 'ni', 'us', 'da', 'le', 'ri', 'sa', 'tu', 'en', 'or', 'wi', 'la', 'mo', 'se'] };
+  V.SYL_COUNT = 20;
+  V.wordName = idx => { const w = idx.map(k => SYL[lang][k]).join(''); return w.charAt(0).toUpperCase() + w.slice(1); };
+  V.ideaName = id => lang === 'de' ? IDEA_DE[id][0] : V.IDEAS[id].name;
+  V.ideaVerb = id => lang === 'de' ? IDEA_DE[id][1] : V.IDEAS[id].verb;
+  V.ideaEffect = id => lang === 'de' ? IDEA_DE[id][2] : V.IDEAS[id].effect;
+  V.slotName = id => lang === 'de' ? SLOT_DE[id] : V.SLOT[id].name;
+  V.lawWhy = id => { const l = V.LAWS.find(x => x.id === id); return lang === 'de' ? LAW_DE[id] : (l ? l.why : ''); };
+  V.realNote = idx => lang === 'de' ? REAL_DE[idx][1] : V.REAL[idx].note;
+
+  V.describeComp = function (comp) {
+    const fine = comp.some(([, f]) => f < 0.01 || f > 0.99);
+    return comp.map(([id, f]) => `${(f * 100).toFixed(fine ? 1 : 0)}% ${V.mn(id)}`).join(' + ');
+  };
+  V.propLine = function (p) {
+    const de = lang === 'de', parts = [];
+    parts.push(`${de ? 'Härte' : 'твердість'} ${(+p.hard).toFixed(1)}`);
+    parts.push(`${de ? 'Zähigkeit' : 'міцність'} ${(+p.tough).toFixed(1)}`);
+    if (p.flex > 2) parts.push(`${de ? 'Biegsamkeit' : 'гнучкість'} ${(+p.flex).toFixed(1)}`);
+    parts.push(`${de ? 'Dichte' : 'густина'} ${(+p.dens).toFixed(1)} ${de ? 'g/cm³' : 'г/см³'}`);
+    if (p.mp) parts.push(de ? `schmilzt bei ~${Math.round(p.mp)} °C` : `плавиться ~${Math.round(p.mp)}°C`);
+    else if (p.hp) parts.push(de ? `hält ~${Math.round(p.hp)} °C aus` : `витримує ~${Math.round(p.hp)}°C`);
+    if (p.cond >= 0.9) parts.push(`${de ? 'Leiter' : 'провідник'}, ${p.pot >= 0 ? '+' : ''}${(+p.pot).toFixed(2)} ${de ? 'V' : 'В'}`);
+    if (p.wp >= 0.8) parts.push(de ? 'wasserdicht' : 'водонепроникний');
+    return parts.join(', ');
+  };
+  /* Опис створеного матеріалу */
+  V.matDesc = function (m) {
+    if (!m || !m.inventor) return m && lang === 'uk' ? (m.desc || '') : '';
+    if (m.realIdx != null) return `${V.realNote(m.realIdx)}. ${lang === 'de' ? 'Zusammensetzung' : 'Склад'}: ${V.describeComp(m.comp)}.`;
+    const near = m.nearest ? V.mn(m.nearest) : '—';
+    return lang === 'de'
+      ? `Neuartig: ${m.alloy ? 'Legierung' : 'Verbundstoff'} aus ${V.describeComp(m.comp)}. In der realen Welt hat er keinen eigenen Namen. Am ähnlichsten in den Eigenschaften: ${near}.`
+      : `Нового типу: ${m.alloy ? 'сплав' : 'композит'} ${V.describeComp(m.comp)}. У реальному світі окремої назви не має. Найближчий за властивостями: ${near}.`;
+  };
+  V.devName = function (d) {
+    if (!d) return '';
+    if (d.custom) return d.custom;
+    return V.ideaName(d.idea) + (d.improved ? (lang === 'de' ? ' (verbessert)' : ' (вдосконалений)') : '');
+  };
+  V.knowName = function (k) {
+    const id = k.slice(2), de = lang === 'de';
+    if (k.startsWith('m:')) return V.mn(id);
+    if (k.startsWith('d:')) return (de ? 'Bauweise: ' : 'як зробити: ') + V.ideaName(id);
+    if (k.startsWith('i:')) return (de ? 'Idee: ' : 'ідея: ') + V.ideaName(id);
+    if (k.startsWith('l:')) { const l = V.LAWS.find(x => x.id === id); return l ? (de ? 'Gesetz: ' : 'закон: ') + l.inputs.map(V.mn).join('+') + ' → ' + V.mn(l.out) : id; }
+    return k;
+  };
+
+  /* ---------- Тексти ---------- */
+  // Параметри: n, n2, n3 — імена; m, m2 — id матеріалів; ms — масив id; idea, slot, law, era — ключі;
+  // parts — [[гніздо, матеріал], …]; comp — склад; useful — масив гнізд; note, a, b — вкладені повідомлення.
+  const UK = {
+    'raw': r => r.s,
+    'log.start': 'Вісім поселенців розклали багаття в долині. Вони вміють розводити вогонь — і більше нічого.',
+    'log.find': r => `${r.n} вперше знаходить у долині: ${r.m}.`,
+    'log.idea': r => `${r.n} замислюється: ${r.why}`,
+    'th.idea': r => r.why.charAt(0).toUpperCase() + r.why.slice(1),
+    'why.vessel': 'якби мати щось, що тримає воду над вогнем…',
+    'why.kiln': 'треба загородити вогонь, щоб жар не розходився.',
+    'why.bellows': 'а якщо дмухати в піч повітрям?',
+    'why.net': 'риба близько — от би її чимось вичерпати.',
+    'why.raft': 'деревина тримається на воді… а людина на ній?',
+    'why.cart': 'носити все в руках — надто повільно.',
+    'why.pen': 'а що як тримати тварин поруч, замість ганятися за ними?',
+    'why.house': 'стіни, що тримають жар у печі, втримають і тепло вночі.',
+    'why.lens': 'крізь скло все здається більшим!',
+    'why.tablet': 'якщо видряпати знання на глині, їх не забудуть.',
+    'why.cell': 'два різні метали в солоній воді щипають язик — у цьому щось є.',
+    'log.wall': r => `${r.n}: стіни печі тріщать — вище ${r.cap}°C вони не витримують.`,
+    'log.discMat': r => `★ ${r.n}: ${r.ms}${r.cold ? '' : ` при ${r.t}°C`} → новий матеріал — ${r.m}! (${r.lawWhy})`,
+    'how.heat': r => r.cold ? `${r.ms}, без нагрівання` : `${r.ms} при ${r.t}°C`,
+    'th.success': r => `Вийшло! ${r.m}!`,
+    'th.again': r => `Знову вийшло: ${r.m}.`,
+    'log.hint': r => `${r.n}: ${r.ms} — ${r.note}`,
+    'heat.ore': 'руда розжарилася, але нічого не віддала — може, їй чогось бракує в суміші?',
+    'heat.air': 'все просто згоріло — може, потрібен жар без повітря?',
+    'heat.hotter': r => `щось почало змінюватися, але жару замало (досягнуто ${r.t}°C)`,
+    'heat.melt': r => `${r.m} розплавився і знову застиг — новим матеріалом не став`,
+    'heat.burn': r => `${r.m} просто згорів`,
+    'heat.nothing': 'нічого не сталося',
+    'log.invent': r => `★ ${r.n} винаходить: ${r.dev}! (${r.parts}) — працює, якість ${r.q}.${r.volts ? ` Напруга ${r.volts} В.` : ''}`,
+    'th.invent': r => `Мій винахід працює: ${r.idea}!`,
+    'log.improve': r => `${r.n} вдосконалює винахід «${r.idea}»: ${r.parts}. Якість ${r.q0} → ${r.q1}.`,
+    'th.notBetter': r => `Вийшло, але не краще за наявне: ${r.idea}.`,
+    'th.partial': r => `${cap(r.idea)} майже працює, але ${r.slot} підводить.`,
+    'log.partial': r => `${r.n} пробує зробити «${r.idea}» (${r.parts}) — майже, але ${r.slot} не годиться.`,
+    'th.fail': r => `${cap(r.idea)} з такого не вийде: ${r.slot} нікуди не годиться.`,
+    'th.cantStart': r => `Не можу почати: забракло — ${r.m}.`,
+    'th.needHeat': r => `${cap(r.m)} і ${r.m2} не змішуються — треба розплавити, а це ${r.t}°C.`,
+    'log.needHeat': r => `${r.n} намагається сплавити ${r.m} з ${r.m2}, але печі не вистачає жару (${r.t}°C).`,
+    'th.known': r => `Вийшов знайомий матеріал: ${r.m}.`,
+    'th.crumble': 'Суміш розсипалася на порох.',
+    'log.crumble': r => `${r.n}: суміш ${r.comp} розсипалася.`,
+    'log.junk': r => `${r.n} змішує ${r.comp} і називає це «${r.m}». Поки незрозуміло, навіщо воно.`,
+    'th.junk': r => `«${r.m}»… цікаво, але навіщо?`,
+    'log.newMat': r => `★ ${r.n} створює ${r.alloy ? 'сплав' : 'композит'} «${r.m}» (${r.real ? 'справжній матеріал' : 'невідомий у реальному світі'}): ${r.comp}.${r.useful ? ` Найкращий для: ${r.useful}!` : ''}`,
+    'th.newMat': r => `Новий матеріал — «${r.m}»!`,
+    'th.look': 'Оглядаюся довкола.',
+    'th.rest': 'Час відпочити.',
+    'th.ate': r => `Поїв: ${r.m}.`,
+    'th.play': 'Граюся біля табору!',
+    'th.goGather': r => `Іду по: ${r.m}.`,
+    'th.capture': 'Спробую впіймати кроля живим.',
+    'th.huntFor': r => `Полюю: ${r.animal}.`,
+    'th.escaped': 'Втекло…',
+    'log.firstPen': r => `${r.n} приводить першого прирученого кроля в загороду.`,
+    'th.penned': 'Кріль у загороді!',
+    'th.goodHunt': 'Вдале полювання!',
+    'th.goFish': 'Йду рибалити.',
+    'th.caught': r => `Упіймав рибу (${r.k}).`,
+    'th.noBite': 'Не клює.',
+    'th.explore': 'Цікаво, що там, за пагорбами?',
+    'th.thinking': 'Обмірковую ідею…',
+    'th.noMats': 'Бракує матеріалів для дослідів.',
+    'plan.heat': r => `Спробую нагріти: ${r.ms}.`,
+    'plan.build': r => `Майструю: ${r.idea} (${r.ms}).`,
+    'plan.alloy': r => `Сплавляю: ${r.m} + ${r.m2}.`,
+    'plan.comp': r => `Змішую: ${r.m} + ${r.m2}.`,
+    'th.talkTo': r => `Іду поговорити. Співрозмовник: ${r.n}.`,
+    'log.help': r => `${r.n} помічає, що ${r.n2} ${r.f2 ? 'голодна' : 'голодний'}, і ділиться їжею.`,
+    'log.talk': r => `${r.n}: «${r.a}»${r.b ? ` — ${r.n2}: «${r.b}»` : ''}`,
+    'small.0': 'Як тобі сьогоднішній день?', 'ans.0': 'Добрий день, працюємо!',
+    'small.1': 'Бачив, скільки кролів на луці?', 'ans.1': 'Ага, треба б на них полювати.',
+    'small.2': 'Вогонь сьогодні гарно горить.', 'ans.2': 'Тепло — це головне.',
+    'small.3': 'Чула, як вовки вили вночі?', 'ans.3': 'Тримаймося ближче до вогню.',
+    'dlg.design': r => `Дивись, ${r.idea} робиться так: ${r.ms}.`, 'dlg.designA': 'О, тепер і я так зможу!',
+    'dlg.law': r => `${r.ms}${r.cold ? '' : ' + жар'} = ${r.m}. Перевір!`, 'dlg.lawA': 'Не може бути! Треба спробувати.',
+    'dlg.idea': r => `Я думаю, як ${r.verb}. Може, ${r.idea}?`, 'dlg.ideaA': 'Цікава думка…',
+    'dlg.mat': r => `Знаєш, що таке ${r.m}? ${r.info}.`, 'dlg.matA': 'Запам\'ятаю.',
+    'th.buildHouse': 'Будую новий дім.',
+    'log.house': r => `${r.n} добудовує ще один дім. Тепер їх ${r.k}.`,
+    'log.death': r => `${r.n} не ${r.f ? 'пережила' : 'пережив'} голоду. Поселення сумує.`,
+    'log.birth': r => `У ${r.n} і ${r.n2} народжується дитина — ${r.n3}.`,
+    'log.era': r => `Настає нова епоха: ${r.era}.`,
+    'st.on': 'увімкнено', 'st.off': 'вимкнено', 'st.works': r => `працює (${r.ms} мс)`, 'st.err': r => `помилка: ${r.e}`,
+    'st.noconn': 'немає з\'єднання (див. «Як під\'єднати»)', 'st.checking': 'перевіряю…', 'st.needKey': 'вставте ключ API',
+    'st.badKey': 'ключ не прийнято', 'st.okOR': 'з\'єднано з OpenRouter', 'st.ok': 'з\'єднано', 'st.okNoModels': 'з\'єднано, але моделей немає',
+    'st.missing': r => `моделі «${r.model}» немає, доступні: ${r.list}`,
+    // причини натхнення
+    'rw.learn': 'нове знання', 'rw.foundMat': 'знайшов новий матеріал', 'rw.sawFish': 'побачив рибу', 'rw.idea': 'нова ідея',
+    'rw.taughtBy': 'навчився в іншого', 'rw.wasTaught': 'мене навчили', 'rw.teach': 'допоміг іншому розвиватися', 'rw.chat': 'гарна розмова',
+    'rw.fed': 'нагодував іншого', 'rw.hunt': 'вдале полювання', 'rw.gather': 'приніс до табору', 'rw.explore': 'дослідив місцевість',
+    'rw.walk': 'прогулянка', 'rw.newMat': 'новий матеріал', 'rw.useful': 'новий матеріал працює краще за відомі',
+    'rw.invent': 'новий винахід працює', 'rw.improve': 'покращив винахід', 'rw.partial': 'майже вийшло', 'rw.fail': 'спроба',
+    'rw.impact': 'інші користуються моїм винаходом', 'rw.copied': 'відтворив відому конструкцію', 'rw.recipe': 'повторив рецепт',
+    'rw.observe': 'цінне спостереження', 'rw.tamed': 'приручив тварину', 'rw.catch': 'улов', 'rw.built': 'збудував для всіх',
+    'rw.tablets': 'таблички вчать інших', 'rw.readTablets': 'прочитав таблички', 'rw.work': 'корисна робота',
+  };
+
+  const DE = {
+    'raw': r => r.s,
+    'log.start': 'Acht Siedler haben im Tal ein Feuer entzündet. Sie können Feuer machen — und sonst nichts.',
+    'log.find': r => `${r.n} entdeckt zum ersten Mal im Tal: ${r.m}.`,
+    'log.idea': r => `${r.n} grübelt: ${r.why}`,
+    'th.idea': r => r.why.charAt(0).toUpperCase() + r.why.slice(1),
+    'why.vessel': 'hätte man doch etwas, das Wasser über dem Feuer hält …',
+    'why.kiln': 'man muss das Feuer einfassen, damit die Glut nicht verfliegt.',
+    'why.bellows': 'und wenn man Luft in den Ofen bläst?',
+    'why.net': 'die Fische sind so nah — könnte man sie doch herausschöpfen.',
+    'why.raft': 'Holz schwimmt auf dem Wasser … und ein Mensch darauf?',
+    'why.cart': 'alles in den Händen zu tragen, ist zu langsam.',
+    'why.pen': 'was, wenn wir die Tiere bei uns halten, statt ihnen nachzujagen?',
+    'why.house': 'Wände, die die Glut im Ofen halten, halten nachts auch die Wärme.',
+    'why.lens': 'durch Glas sieht alles größer aus!',
+    'why.tablet': 'ritzt man Wissen in Ton, wird es nicht vergessen.',
+    'why.cell': 'zwei verschiedene Metalle in Salzwasser kribbeln auf der Zunge — da steckt etwas dahinter.',
+    'log.wall': r => `${r.n}: Die Ofenwände knacken — über ${r.cap} °C halten sie nicht.`,
+    'log.discMat': r => `★ ${r.n} ${r.cold ? 'verbindet' : 'erhitzt'} ${r.ms}${r.cold ? '' : ` auf ${r.t} °C`} und erhält einen neuen Stoff — ${r.m}! (${r.lawWhy})`,
+    'how.heat': r => r.cold ? `${r.ms}, ohne Erhitzen` : `${r.ms} bei ${r.t} °C`,
+    'th.success': r => `Geschafft! ${r.m}!`,
+    'th.again': r => `Wieder geklappt: ${r.m}.`,
+    'log.hint': r => `${r.n}: ${r.ms} — ${r.note}`,
+    'heat.ore': 'das Erz glüht, gibt aber nichts frei — fehlt vielleicht etwas in der Mischung?',
+    'heat.air': 'alles ist einfach verbrannt — braucht es Glut ohne Luft?',
+    'heat.hotter': r => `es beginnt sich zu verändern, aber die Glut reicht nicht (erreicht: ${r.t} °C)`,
+    'heat.melt': r => `${r.m} ist geschmolzen und wieder erstarrt — ein neuer Stoff ist es nicht`,
+    'heat.burn': r => `${r.m} ist einfach verbrannt`,
+    'heat.nothing': 'nichts ist passiert',
+    'log.invent': r => `★ ${r.n} erfindet: ${r.dev}! (${r.parts}) — funktioniert, Qualität ${r.q}.${r.volts ? ` Spannung ${r.volts} V.` : ''}`,
+    'th.invent': r => `Meine Erfindung funktioniert: ${r.idea}!`,
+    'log.improve': r => `${r.n} verbessert: ${r.idea} (${r.parts}). Qualität ${r.q0} → ${r.q1}.`,
+    'th.notBetter': r => `Geklappt, aber nicht besser als das Vorhandene: ${r.idea}.`,
+    'th.partial': r => `${r.idea} funktioniert fast, aber ${r.slot} taugt nicht.`,
+    'log.partial': r => `${r.n} versucht: ${r.idea} (${r.parts}) — fast, aber ${r.slot} taugt nicht.`,
+    'th.fail': r => `${r.idea} wird so nichts: ${r.slot} taugt gar nicht.`,
+    'th.cantStart': r => `Kann nicht anfangen: es fehlt — ${r.m}.`,
+    'th.needHeat': r => `${r.m} und ${r.m2} mischen sich nicht — man muss sie schmelzen, das sind ${r.t} °C.`,
+    'log.needHeat': r => `${r.n} versucht, ${r.m} mit ${r.m2} zu legieren, aber der Ofen ist nicht heiß genug (${r.t} °C).`,
+    'th.known': r => `Ein bekannter Stoff ist entstanden: ${r.m}.`,
+    'th.crumble': 'Die Mischung ist zu Staub zerfallen.',
+    'log.crumble': r => `${r.n}: Die Mischung ${r.comp} ist zerfallen.`,
+    'log.junk': r => `${r.n} mischt ${r.comp} und nennt es „${r.m}“. Wofür es gut ist, ist noch unklar.`,
+    'th.junk': r => `„${r.m}“ … spannend, aber wozu?`,
+    'log.newMat': r => `★ ${r.n} erschafft ${r.alloy ? 'die Legierung' : 'den Verbundstoff'} „${r.m}“ (${r.real ? 'echter Werkstoff' : 'in der realen Welt unbekannt'}): ${r.comp}.${r.useful ? ` Am besten für: ${r.useful}!` : ''}`,
+    'th.newMat': r => `Ein neuer Stoff — „${r.m}“!`,
+    'th.look': 'Ich schaue mich um.',
+    'th.rest': 'Zeit, sich auszuruhen.',
+    'th.ate': r => `Gegessen: ${r.m}.`,
+    'th.play': 'Ich spiele am Lager!',
+    'th.goGather': r => `Ich hole: ${r.m}.`,
+    'th.capture': 'Ich versuche, ein Kaninchen lebend zu fangen.',
+    'th.huntFor': r => `Ich jage: ${r.animal}.`,
+    'th.escaped': 'Entwischt …',
+    'log.firstPen': r => `${r.n} bringt das erste gezähmte Kaninchen ins Gehege.`,
+    'th.penned': 'Das Kaninchen ist im Gehege!',
+    'th.goodHunt': 'Erfolgreiche Jagd!',
+    'th.goFish': 'Ich gehe fischen.',
+    'th.caught': r => `Fisch gefangen (${r.k}).`,
+    'th.noBite': 'Kein Biss.',
+    'th.explore': 'Was wohl hinter den Hügeln liegt?',
+    'th.thinking': 'Ich denke über eine Idee nach …',
+    'th.noMats': 'Mir fehlen Materialien für Versuche.',
+    'plan.heat': r => `Ich versuche zu erhitzen: ${r.ms}.`,
+    'plan.build': r => `Ich baue: ${r.idea} (${r.ms}).`,
+    'plan.alloy': r => `Ich legiere: ${r.m} + ${r.m2}.`,
+    'plan.comp': r => `Ich mische: ${r.m} + ${r.m2}.`,
+    'th.talkTo': r => `Ich gehe reden. Gesprächspartner: ${r.n}.`,
+    'log.help': r => `${r.n} merkt, dass ${r.n2} hungrig ist, und teilt das Essen.`,
+    'log.talk': r => `${r.n}: „${r.a}“${r.b ? ` — ${r.n2}: „${r.b}“` : ''}`,
+    'small.0': 'Wie war dein Tag?', 'ans.0': 'Guter Tag, wir arbeiten!',
+    'small.1': 'Hast du gesehen, wie viele Kaninchen auf der Wiese sind?', 'ans.1': 'Ja, wir sollten sie jagen.',
+    'small.2': 'Das Feuer brennt heute schön.', 'ans.2': 'Wärme ist das Wichtigste.',
+    'small.3': 'Hast du die Wölfe heute Nacht heulen gehört?', 'ans.3': 'Bleiben wir nah am Feuer.',
+    'dlg.design': r => `Schau, so baut man: ${r.idea} — ${r.ms}.`, 'dlg.designA': 'Oh, jetzt kann ich das auch!',
+    'dlg.law': r => `${r.ms}${r.cold ? '' : ' + Hitze'} = ${r.m}. Probier's aus!`, 'dlg.lawA': 'Unglaublich! Das muss ich probieren.',
+    'dlg.idea': r => `Ich überlege, wie man ${r.verb} kann. Vielleicht: ${r.idea}?`, 'dlg.ideaA': 'Interessanter Gedanke …',
+    'dlg.mat': r => `Kennst du ${r.m}? ${r.info}.`, 'dlg.matA': 'Merke ich mir.',
+    'th.buildHouse': 'Ich baue ein neues Haus.',
+    'log.house': r => `${r.n} baut noch ein Haus. Jetzt sind es ${r.k}.`,
+    'log.death': r => `${r.n} hat den Hunger nicht überlebt. Die Siedlung trauert.`,
+    'log.birth': r => `${r.n} und ${r.n2} bekommen ein Kind — ${r.n3}.`,
+    'log.era': r => `Ein neues Zeitalter beginnt: ${r.era}.`,
+    'st.on': 'an', 'st.off': 'aus', 'st.works': r => `läuft (${r.ms} ms)`, 'st.err': r => `Fehler: ${r.e}`,
+    'st.noconn': 'keine Verbindung (siehe „So verbindest du …“)', 'st.checking': 'prüfe …', 'st.needKey': 'API-Schlüssel einfügen',
+    'st.badKey': 'Schlüssel abgelehnt', 'st.okOR': 'mit OpenRouter verbunden', 'st.ok': 'verbunden', 'st.okNoModels': 'verbunden, aber keine Modelle',
+    'st.missing': r => `Modell „${r.model}“ fehlt, verfügbar: ${r.list}`,
+    'rw.learn': 'neues Wissen', 'rw.foundMat': 'neuen Stoff gefunden', 'rw.sawFish': 'Fische gesehen', 'rw.idea': 'neue Idee',
+    'rw.taughtBy': 'von anderen gelernt', 'rw.wasTaught': 'man hat mir etwas beigebracht', 'rw.teach': 'anderen beim Wachsen geholfen', 'rw.chat': 'gutes Gespräch',
+    'rw.fed': 'jemanden satt gemacht', 'rw.hunt': 'erfolgreiche Jagd', 'rw.gather': 'zum Lager gebracht', 'rw.explore': 'Gegend erkundet',
+    'rw.walk': 'Spaziergang', 'rw.newMat': 'neuer Stoff', 'rw.useful': 'neuer Stoff ist besser als alle bekannten',
+    'rw.invent': 'neue Erfindung funktioniert', 'rw.improve': 'Erfindung verbessert', 'rw.partial': 'fast geschafft', 'rw.fail': 'Versuch',
+    'rw.impact': 'andere nutzen meine Erfindung', 'rw.copied': 'bekannte Bauweise nachgebaut', 'rw.recipe': 'Rezept wiederholt',
+    'rw.observe': 'wertvolle Beobachtung', 'rw.tamed': 'Tier gezähmt', 'rw.catch': 'Fang', 'rw.built': 'für alle gebaut',
+    'rw.tablets': 'Tafeln lehren andere', 'rw.readTablets': 'Tafeln gelesen', 'rw.work': 'nützliche Arbeit',
+  };
+  const DICT = { uk: UK, de: DE };
+  function cap(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : s; }
+
+  /* Розгортання параметрів у готові рядки */
+  function resolve(p) {
+    const r = {};
+    for (const k in p) {
+      const v = p[k];
+      if (v == null) continue;
+      if (k === 'n' || k === 'n2' || k === 'n3') { r[k] = V.nn(v); r[k === 'n' ? 'f' : 'f' + k.slice(1)] = FEMALE.has(v); }
+      else if (k === 'm' || k === 'm2') r[k] = V.mn(v);
+      else if (k === 'ms') r.ms = v.map(V.mn).join(' + ');
+      else if (k === 'idea') { r.idea = V.ideaName(v); r.verb = V.ideaVerb(v); }
+      else if (k === 'slot') r.slot = V.slotName(v);
+      else if (k === 'law') r.lawWhy = V.lawWhy(v);
+      else if (k === 'era') r.era = V.eraName(v);
+      else if (k === 'w') r.why = T('why.' + v);
+      else if (k === 'parts') r.parts = v.map(([s, m]) => `${V.slotName(s)} — ${V.mn(m)}`).join(', ');
+      else if (k === 'comp') r.comp = V.describeComp(v);
+      else if (k === 'useful') r.useful = v.length ? v.map(V.slotName).join(', ') : '';
+      else if (k === 'animal') r.animal = V.animalName(v);
+      else if (k === 'dev') r.dev = V.devName(v);
+      else if (k === 'info') r.info = v;
+      else if (Array.isArray(v) && typeof v[0] === 'string' && (v.length === 1 || typeof v[1] === 'object')) r[k] = V.R(v);
+      else r[k] = v;
+    }
+    if (p.infoMat) { const m = V.MATERIALS[p.infoMat]; const d = V.matDesc(m); r.info = d ? d.split('.')[0] : V.propLine(m); }
+    return r;
+  }
+
+  function T(key, p) {
+    const d = DICT[lang][key] !== undefined ? DICT[lang][key] : UK[key];
+    if (d === undefined) return key;
+    return typeof d === 'function' ? d(resolve(p || {})) : d;
+  }
+  V.T = T;
+  /* Повідомлення: рядок (як є) або [ключ, параметри] */
+  V.R = function (msg) {
+    if (msg == null) return '';
+    if (typeof msg === 'string') return msg;
+    return T(msg[0], msg[1]);
+  };
+  V.msg = (key, p) => [key, p || {}];
+
+  /* ---------- Статичний інтерфейс ---------- */
+  V.UI = {
+    uk: {
+      title: 'Долина винахідників', q1: '«', q2: '»',
+      'aria.speed': 'Швидкість часу', pause: 'Пауза', resume: 'Продовжити',
+      'stat.pop': 'мешканців', 'stat.food': 'їжі в запасі', 'stat.mats': 'відомих матеріалів', 'stat.inv': 'винаходів',
+      'stat.exp': 'дослідів', 'stat.insp': 'натхнення', 'stat.rab': 'кролів', 'stat.deer': 'оленів', 'stat.wolf': 'вовків',
+      day: 'День', night: 'ніч', dayShort: 'Д',
+      'lg.rabbit': 'кріль', 'lg.deer': 'олень', 'lg.wolf': 'вовк', 'lg.ore': 'руда', 'lg.exp': 'дослід',
+      'lg.hint': 'Торкніться поселенця, щоб стежити за ним.',
+      'tab.chron': 'Хроніка', 'tab.people': 'Мешканці', 'tab.disc': 'Відкриття', 'tab.brain': 'Мозок',
+      'f.all': 'Усе', 'f.discovery': 'Відкриття', 'f.idea': 'Ідеї', 'f.talk': 'Розмови', 'f.life': 'Життя',
+      quiet: 'Поки тихо.', zoomIn: 'Наблизити', zoomOut: 'Віддалити', strip: 'Мешканці', follow: 'Стежити за обраним',
+      prev: 'Попередній мешканець', next: 'Наступний мешканець', close: 'Закрити', child: 'дитина', adult: 'дорослий', deceased: 'помер(ла)',
+      lastLine: 'Остання репліка', sat: 'Ситість', energy: 'Енергія', social: 'Спілкування', health: 'Здоров\'я',
+      insp: 'Натхнення', brainLearned: 'Чого навчився мозок: очікуване натхнення від кожного заняття.',
+      knowledge: 'Знання', matsN: 'матеріалів', lawsN: 'законів природи', craft: 'ремесло', teachSk: 'навчання',
+      invented: 'Винайшов(ла)', friends: 'Друзі', history: 'Історія', nothingYet: 'Поки нічого особливого.', knowN: 'знань',
+      inventions: 'Винаходи', noInv: 'Ще нічого. Поселенці лише починають пробувати.', quality: 'якість',
+      materials: 'Матеріали', matHint: 'Торкніться матеріалу, щоб побачити властивості. Помаранчева рамка — створений поселенцями.',
+      derived: 'Отримані', natural: 'Природні', noneYet: 'поки немає', recent: 'Останні відкриття', inventedHere: 'вигаданий у долині',
+      realMat: 'справжній матеріал', bestFor: 'Найкращий для', created: 'Створено', newTag: 'новий', realTag: 'справжній',
+      'llm.title': 'LLM-мозок',
+      'llm.intro': 'Без LLM поселенці думають за правилами і вчаться на заохоченнях. З LLM безкоштовна відкрита модель вигадує їхні експерименти та розмови, а рушій фізики перевіряє, чи це справді працює.',
+      'p.cf': 'хмара цього сайту, без ключа', 'p.or': 'хмара, працює з телефона', 'p.ol': 'на твоєму комп\'ютері', 'p.lm': 'на твоєму комп\'ютері',
+      'llm.on': 'Під\'єднати модель', 'llm.server': 'Сервер', 'llm.url': 'Адреса', 'llm.model': 'Модель', 'llm.key': 'Ключ API',
+      'llm.compat': 'OpenAI-сумісний (LM Studio, llama.cpp…)', 'llm.plans': 'Модель вигадує експерименти', 'llm.chat': 'Модель пише розмови',
+      'llm.test': 'Перевірити з\'єднання', 'llm.off': 'вимкнено', 'llm.answers': 'відповідей', 'llm.noThought': '(без думки)',
+      'llm.bad': 'відповідь не підійшла, вирішили правила', 'key.ollama': 'не потрібен для Ollama', 'key.opt': 'якщо сервер його вимагає', 'key.cf': 'не потрібен',
+      'how.title': 'Як під\'єднати безкоштовну модель',
+      'how.cf': '<b>Cloudflare Workers AI</b> — якщо гра розгорнута на Cloudflare (інструкція в README), натисніть «Cloudflare» вгорі: модель працює на сервері сайту, без ключа, з телефона.',
+      'how.or': '<b>OpenRouter</b> — створіть ключ на <a href="https://openrouter.ai/keys" target="_blank" rel="noopener">openrouter.ai/keys</a>, натисніть «OpenRouter» і вставте ключ. Модель <code>openrouter/free</code> сама обирає доступну безкоштовну модель.',
+      'how.ol': '<b>Ollama</b> на комп\'ютері: <code>ollama pull qwen2.5:3b</code>, потім <code>OLLAMA_ORIGINS="*" ollama serve</code> (PowerShell: <code>$env:OLLAMA_ORIGINS="*"; ollama serve</code>), відкрийте <code>index.html</code> і натисніть «Ollama».',
+      'how.note': 'У веб-версії гри, відкритій із Claude, з\'єднання зі сторонніми серверами заблоковані, тому там працює лише мозок на правилах. Ключ API зберігається лише у вашому браузері.',
+      'about.title': 'Як це влаштовано',
+      'about.1': '<b>Закони природи</b> — властивості матеріалів, температура полум\'я, піч, міхи, межа жаростійкості стін, сплави та композити. Їх знає лише світ.',
+      'about.2': '<b>Ідеї</b> народжуються з проблем: «жару замало», «риба близько», «носити важко». Як саме втілити ідею, поселенці шукають самі.',
+      'about.3': '<b>Натхнення</b>: нове знання +2, навчити іншого +4, новий матеріал +15, матеріал кращий за відомі +20, робочий винахід до +40, покращення +10, невдача +1, бонус автору, коли інші користуються винаходом. Поселенці частіше роблять те, що приносить натхнення.',
+      'about.4': '<b>Нові матеріали</b>: якщо склад збігається з реальним (бронза, спекулум, сталь, саман…), матеріал отримує справжню назву; якщо ні — вигадану з поясненням і найближчим відомим аналогом.',
+      newWorld: 'Новий світ', worldNo: 'Світ №', mapLabel: 'Карта долини', speed: 'Швидкість',
+      'note.cf': 'Модель працює на Cloudflare Workers AI цього сайту — ключ не потрібен. Якщо з\'єднання немає, гру відкрито не з Cloudflare.',
+      'note.or': 'Вставте ключ з <a href="https://openrouter.ai/keys" target="_blank" rel="noopener">openrouter.ai/keys</a>. Модель <code>openrouter/free</code> сама обирає доступну безкоштовну модель. Гра має бути відкрита зі звичайного сайту, а не з Claude.',
+      'note.ol': 'Запустіть <code>OLLAMA_ORIGINS="*" ollama serve</code> і завантажте модель: <code>ollama pull qwen2.5:3b</code>.',
+      'note.lm': 'У LM Studio завантажте модель і ввімкніть локальний сервер (Developer → Start Server, з дозволом CORS). Потім натисніть «Перевірити з\'єднання» і виберіть модель зі списку.',
+    },
+    de: {
+      title: 'Tal der Erfinder', q1: '„', q2: '“',
+      'aria.speed': 'Zeitgeschwindigkeit', pause: 'Pause', resume: 'Fortsetzen',
+      'stat.pop': 'Bewohner', 'stat.food': 'Nahrung im Vorrat', 'stat.mats': 'bekannte Stoffe', 'stat.inv': 'Erfindungen',
+      'stat.exp': 'Versuche', 'stat.insp': 'Inspiration', 'stat.rab': 'Kaninchen', 'stat.deer': 'Hirsche', 'stat.wolf': 'Wölfe',
+      day: 'Tag', night: 'Nacht', dayShort: 'T',
+      'lg.rabbit': 'Kaninchen', 'lg.deer': 'Hirsch', 'lg.wolf': 'Wolf', 'lg.ore': 'Erz', 'lg.exp': 'Versuch',
+      'lg.hint': 'Tippe auf einen Siedler, um ihm zu folgen.',
+      'tab.chron': 'Chronik', 'tab.people': 'Bewohner', 'tab.disc': 'Entdeckungen', 'tab.brain': 'Gehirn',
+      'f.all': 'Alles', 'f.discovery': 'Entdeckungen', 'f.idea': 'Ideen', 'f.talk': 'Gespräche', 'f.life': 'Leben',
+      quiet: 'Noch ist es ruhig.', zoomIn: 'Vergrößern', zoomOut: 'Verkleinern', strip: 'Bewohner', follow: 'Ausgewählten folgen',
+      prev: 'Vorheriger Bewohner', next: 'Nächster Bewohner', close: 'Schließen', child: 'Kind', adult: 'erwachsen', deceased: 'verstorben',
+      lastLine: 'Letzte Äußerung', sat: 'Sättigung', energy: 'Energie', social: 'Geselligkeit', health: 'Gesundheit',
+      insp: 'Inspiration', brainLearned: 'Was das Gehirn gelernt hat: erwartete Inspiration je Tätigkeit.',
+      knowledge: 'Wissen', matsN: 'Stoffe', lawsN: 'Naturgesetze', craft: 'Handwerk', teachSk: 'Lehren',
+      invented: 'Erfunden', friends: 'Freunde', history: 'Geschichte', nothingYet: 'Noch nichts Besonderes.', knowN: 'Wissen',
+      inventions: 'Erfindungen', noInv: 'Noch nichts. Die Siedler fangen gerade erst an zu probieren.', quality: 'Qualität',
+      materials: 'Stoffe', matHint: 'Tippe auf einen Stoff, um seine Eigenschaften zu sehen. Orangefarbener Rahmen — von Siedlern erschaffen.',
+      derived: 'Gewonnen', natural: 'Natürlich', noneYet: 'noch keine', recent: 'Letzte Entdeckungen', inventedHere: 'im Tal erfunden',
+      realMat: 'echter Werkstoff', bestFor: 'Am besten für', created: 'Erschaffen', newTag: 'neu', realTag: 'echt',
+      'llm.title': 'LLM-Gehirn',
+      'llm.intro': 'Ohne LLM denken die Siedler nach Regeln und lernen durch Belohnungen. Mit LLM erfindet ein kostenloses offenes Modell ihre Experimente und Gespräche, und die Physik-Engine prüft, ob es wirklich funktioniert.',
+      'p.cf': 'Cloud dieser Seite, ohne Schlüssel', 'p.or': 'Cloud, läuft auf dem Handy', 'p.ol': 'auf deinem Computer', 'p.lm': 'auf deinem Computer',
+      'llm.on': 'Modell verbinden', 'llm.server': 'Server', 'llm.url': 'Adresse', 'llm.model': 'Modell', 'llm.key': 'API-Schlüssel',
+      'llm.compat': 'OpenAI-kompatibel (LM Studio, llama.cpp …)', 'llm.plans': 'Modell erfindet Experimente', 'llm.chat': 'Modell schreibt Gespräche',
+      'llm.test': 'Verbindung prüfen', 'llm.off': 'aus', 'llm.answers': 'Antworten', 'llm.noThought': '(ohne Gedanken)',
+      'llm.bad': 'Antwort passte nicht, die Regeln haben entschieden', 'key.ollama': 'für Ollama nicht nötig', 'key.opt': 'falls der Server ihn verlangt', 'key.cf': 'nicht nötig',
+      'how.title': 'So verbindest du ein kostenloses Modell',
+      'how.cf': '<b>Cloudflare Workers AI</b> — wenn das Spiel auf Cloudflare läuft (Anleitung im README), tippe oben auf „Cloudflare“: das Modell läuft auf dem Server der Seite, ohne Schlüssel, auch vom Handy.',
+      'how.or': '<b>OpenRouter</b> — erstelle einen Schlüssel auf <a href="https://openrouter.ai/keys" target="_blank" rel="noopener">openrouter.ai/keys</a>, tippe auf „OpenRouter“ und füge ihn ein. Das Modell <code>openrouter/free</code> wählt selbst ein verfügbares kostenloses Modell.',
+      'how.ol': '<b>Ollama</b> auf dem Computer: <code>ollama pull qwen2.5:3b</code>, dann <code>OLLAMA_ORIGINS="*" ollama serve</code> (PowerShell: <code>$env:OLLAMA_ORIGINS="*"; ollama serve</code>), <code>index.html</code> öffnen und „Ollama“ tippen.',
+      'how.note': 'In der Web-Version aus Claude sind Verbindungen zu fremden Servern gesperrt, dort läuft nur das Regel-Gehirn. Der API-Schlüssel bleibt nur in deinem Browser.',
+      'about.title': 'Wie es funktioniert',
+      'about.1': '<b>Naturgesetze</b> — Stoffeigenschaften, Flammentemperatur, Ofen, Blasebalg, Hitzegrenze der Wände, Legierungen und Verbundstoffe. Nur die Welt kennt sie.',
+      'about.2': '<b>Ideen</b> entstehen aus Problemen: „zu wenig Glut“, „die Fische sind nah“, „Tragen ist mühsam“. Wie man sie umsetzt, finden die Siedler selbst heraus.',
+      'about.3': '<b>Inspiration</b>: neues Wissen +2, andere lehren +4, neuer Stoff +15, Stoff besser als alle bekannten +20, funktionierende Erfindung bis +40, Verbesserung +10, Fehlschlag +1, Bonus für den Erfinder, wenn andere die Erfindung nutzen. Siedler tun öfter, was Inspiration bringt.',
+      'about.4': '<b>Neue Stoffe</b>: Stimmt die Zusammensetzung mit einem echten Werkstoff überein (Bronze, Speculum, Stahl, Strohlehm …), bekommt er den echten Namen; sonst einen erfundenen mit Erklärung und dem ähnlichsten bekannten Stoff.',
+      newWorld: 'Neue Welt', worldNo: 'Welt Nr. ', mapLabel: 'Karte des Tals', speed: 'Tempo',
+      'note.cf': 'Das Modell läuft auf Cloudflare Workers AI dieser Seite — kein Schlüssel nötig. Ohne Verbindung ist das Spiel nicht über Cloudflare geöffnet.',
+      'note.or': 'Füge den Schlüssel von <a href="https://openrouter.ai/keys" target="_blank" rel="noopener">openrouter.ai/keys</a> ein. Das Modell <code>openrouter/free</code> wählt selbst ein verfügbares kostenloses Modell. Das Spiel muss von einer normalen Webseite geöffnet sein, nicht aus Claude.',
+      'note.ol': 'Starte <code>OLLAMA_ORIGINS="*" ollama serve</code> und lade ein Modell: <code>ollama pull qwen2.5:3b</code>.',
+      'note.lm': 'Lade in LM Studio ein Modell und starte den lokalen Server (Developer → Start Server, mit CORS). Dann „Verbindung prüfen“ tippen und das Modell aus der Liste wählen.',
+    },
+  };
+  V.u = key => (V.UI[lang][key] !== undefined ? V.UI[lang][key] : V.UI.uk[key] !== undefined ? V.UI.uk[key] : key);
+})(window.V = window.V || {});
+
+</script>
 <script>
 /* ============================================================
    Долина винахідників — «закони природи»
@@ -414,21 +940,21 @@ code { font: 12px var(--mono); background: var(--soft); padding: 1px 5px; border
     for (const law of V.LAWS) {
       if (!sameSet(law.inputs, plain)) continue;
       if (law.reducer && !hasReducer) {
-        if (temp >= law.minT) return { ok: false, hint: 'nothing', note: 'руда розжарилася, але нічого не віддала — може, їй чогось бракує в суміші?' };
+        if (temp >= law.minT) return { ok: false, hint: 'nothing', note: ['heat.ore', {}] };
         continue;
       }
       if (!law.reducer && hasReducer && plain.length === inputs.length - 1 && law.id !== 'char') {
         // зайве вугілля не заважає, просто згорає
       }
-      if (law.enclosed && !enclosed) return { ok: false, hint: 'air', law: law.id, note: 'все просто згоріло — може, потрібен жар без повітря?' };
-      if (temp < law.minT) return { ok: false, hint: 'hotter', law: law.id, need: law.minT, note: `щось почало змінюватися, але жару замало (досягнуто ${Math.round(temp)}°C)` };
+      if (law.enclosed && !enclosed) return { ok: false, hint: 'air', law: law.id, note: ['heat.air', {}] };
+      if (temp < law.minT) return { ok: false, hint: 'hotter', law: law.id, need: law.minT, note: ['heat.hotter', { t: Math.round(temp) }] };
       return { ok: true, out: law.out, law: law.id, why: law.why };
     }
     // фізична реакція без нового матеріалу
     const m = M[plain[0]];
-    if (m && m.mp && temp >= m.mp) return { ok: false, hint: 'melt', note: `${m.name} розплавився і знову застиг — новим матеріалом не став` };
-    if (m && m.fuel) return { ok: false, hint: 'burn', note: `${m.name} просто згорів` };
-    return { ok: false, hint: 'nothing', note: 'нічого не сталося' };
+    if (m && m.mp && temp >= m.mp) return { ok: false, hint: 'melt', note: ['heat.melt', { m: m.id }] };
+    if (m && m.fuel) return { ok: false, hint: 'burn', note: ['heat.burn', { m: m.id }] };
+    return { ok: false, hint: 'nothing', note: ['heat.nothing', {}] };
   };
 
   /* ---------- Генератор сплавів і композитів ---------- */
@@ -528,29 +1054,21 @@ code { font: 12px var(--mono); background: var(--soft); padding: 1px 5px; border
 
   V.matchReal = function (comp) {
     const ids = comp.map(c => c[0]);
-    for (const r of V.REAL) {
+    for (let i = 0; i < V.REAL.length; i++) {
+      const r = V.REAL[i];
       if (!sameSet(r.comp, ids)) continue;
       if (ids[0] !== r.comp[0]) continue; // основа має збігатися
       const fr = comp.find(c => c[0] === r.minor)[1];
-      if (fr >= r.from && fr < r.to) return r;
+      if (fr >= r.from && fr < r.to) return Object.assign({ idx: i }, r);
     }
     return null;
   };
 
-  const SYL = ['ва', 'ре', 'лі', 'то', 'мі', 'ар', 'ко', 'ні', 'ус', 'да', 'ле', 'ри', 'са', 'ту', 'ен', 'ор', 'ві', 'ла', 'мо', 'зе'];
+  /* Вигадане слово як набір складів — так його можна показати будь-якою мовою */
   V.inventWord = function (rnd) {
-    let w = '';
-    const n = 2 + (rnd() < 0.5 ? 1 : 0);
-    for (let i = 0; i < n; i++) w += SYL[Math.floor(rnd() * SYL.length)];
-    return w.charAt(0).toUpperCase() + w.slice(1);
-  };
-
-  const COMPNAME = { carbon: 'вуглецю' };
-  const compName = id => COMPNAME[id] || (M[id] ? M[id].name : id);
-
-  V.describeComp = function (comp) {
-    const fine = comp.some(([, f]) => f < 0.01 || f > 0.99);
-    return comp.map(([id, f]) => `${(f * 100).toFixed(fine ? 1 : 0)}% ${compName(id)}`).join(' + ');
+    const n = 2 + (rnd() < 0.5 ? 1 : 0), w = [];
+    for (let i = 0; i < n; i++) w.push(Math.floor(rnd() * V.SYL_COUNT));
+    return w;
   };
 
   /* Найближчий відомий матеріал за властивостями */
@@ -624,19 +1142,6 @@ code { font: 12px var(--mono); background: var(--soft); padding: 1px 5px; border
     return { works: min >= 0.6, partial: min >= 0.3, quality: +q.toFixed(2), scores, weakSlot: weak, extra };
   };
 
-  /* Короткий опис властивостей для людей */
-  V.propLine = function (p) {
-    const parts = [];
-    parts.push(`твердість ${(+p.hard).toFixed(1)}`);
-    parts.push(`міцність ${(+p.tough).toFixed(1)}`);
-    if (p.flex > 2) parts.push(`гнучкість ${(+p.flex).toFixed(1)}`);
-    parts.push(`густина ${(+p.dens).toFixed(1)} г/см³`);
-    if (p.mp) parts.push(`плавиться ~${Math.round(p.mp)}°C`);
-    else if (p.hp) parts.push(`витримує ~${Math.round(p.hp)}°C`);
-    if (p.cond >= 0.9) parts.push(`провідник, ${p.pot >= 0 ? '+' : ''}${(+p.pot).toFixed(2)} В`);
-    if (p.wp >= 0.8) parts.push('водонепроникний');
-    return parts.join(', ');
-  };
 })(window.V = window.V || {});
 
 </script>
@@ -657,8 +1162,7 @@ code { font: 12px var(--mono); background: var(--soft); padding: 1px 5px; border
     };
   };
 
-  const T = V.T = { DEEP: 0, SHALLOW: 1, SAND: 2, GRASS: 3, FOREST: 4, HILLS: 5, MOUNT: 6 };
-  V.T_NAMES = ['глибока вода', 'мілина', 'пісок', 'лука', 'ліс', 'пагорби', 'гори'];
+  const T = V.TER = { DEEP: 0, SHALLOW: 1, SAND: 2, GRASS: 3, FOREST: 4, HILLS: 5, MOUNT: 6 };
 
   function valueNoise(rnd, w, h, cell) {
     const gw = Math.ceil(w / cell) + 2, gh = Math.ceil(h / cell) + 2;
@@ -762,8 +1266,8 @@ code { font: 12px var(--mono); background: var(--soft); padding: 1px 5px; border
     return { W, H, tiles, at, near, isWater, camp: { x: camp.x + 0.5, y: camp.y + 0.5 }, rnd };
   };
 
-  V.isLand = (world, x, y) => { const t = world.at(Math.floor(x), Math.floor(y)); return !!t && t.t >= V.T.SAND && t.t !== V.T.MOUNT; };
-  V.walkable = (world, x, y) => { const t = world.at(Math.floor(x), Math.floor(y)); return !!t && t.t >= V.T.SAND; };
+  V.isLand = (world, x, y) => { const t = world.at(Math.floor(x), Math.floor(y)); return !!t && t.t >= V.TER.SAND && t.t !== V.TER.MOUNT; };
+  V.walkable = (world, x, y) => { const t = world.at(Math.floor(x), Math.floor(y)); return !!t && t.t >= V.TER.SAND; };
 
   /* ---------- Тварини ---------- */
   V.ANIMALS = {
@@ -774,7 +1278,7 @@ code { font: 12px var(--mono); background: var(--soft); padding: 1px 5px; border
 
   V.spawnAnimals = function (sim) {
     const { world, rnd } = sim;
-    const land = world.tiles.filter(t => t.t === V.T.GRASS || t.t === V.T.FOREST);
+    const land = world.tiles.filter(t => t.t === V.TER.GRASS || t.t === V.TER.FOREST);
     const add = (type, n) => {
       for (let i = 0; i < n; i++) {
         const t = land[Math.floor(rnd() * land.length)];
@@ -847,9 +1351,6 @@ code { font: 12px var(--mono); background: var(--soft); padding: 1px 5px; border
     'Марта', 'Ілько', 'Соломія', 'Захар', 'Олекса', 'Дарина', 'Роман', 'Христя', 'Іванна', 'Святослав', 'Галя', 'Петро', 'Віра', 'Гнат'];
   const COLORS = ['#e8a33d', '#4fb3a9', '#d9668a', '#7d8de6', '#9ccf5a', '#e6735a', '#b07de0', '#5fa8e8', '#d6c14a', '#e88fd0', '#62c98a', '#c9925e'];
   const FOODS = ['cooked', 'meat', 'fish', 'berries'];
-  const FEMALE = new Set(['Олеся', 'Мирослава', 'Ярина', 'Злата', 'Леся', 'Устина', 'Марта', 'Соломія', 'Дарина', 'Христя', 'Іванна', 'Галя', 'Віра']);
-  const g = (n, m, f) => FEMALE.has(n.name) ? f : m;
-  V.g = g;
 
   // Заохочення («натхнення»)
   const R = V.REWARD = {
@@ -857,8 +1358,7 @@ code { font: 12px var(--mono); background: var(--soft); padding: 1px 5px; border
     improve: 10, impact: 0.3, help: 3, build: 5, hunt: 1.5, gather: 0.5, explore: 1,
   };
   const ACTS = ['gather', 'hunt', 'fish', 'experiment', 'teach', 'build', 'explore'];
-  const ACT_NAMES = { gather: 'збирає', hunt: 'полює', fish: 'рибалить', experiment: 'експериментує', teach: 'навчає', build: 'будує', explore: 'досліджує', eat: 'їсть', sleep: 'спить', listen: 'слухає', play: 'грається', think: 'обмірковує' };
-  V.ACT_NAMES = ACT_NAMES;
+  const msg = V.msg;
 
   function Sim(seed) {
     this.seed = seed;
@@ -882,11 +1382,11 @@ code { font: 12px var(--mono); background: var(--soft); padding: 1px 5px; border
     this.ideasSeen = new Set();
     this.pen = 0;
     this.houses = 0;
-    this.era = 'Кам\'яна доба';
+    this.era = 'stone';
     this.stats = { wolfKills: 0, hunts: 0, fish: 0, taught: 0, experiments: 0, births: 0 };
     V.spawnAnimals(this);
     for (let i = 0; i < 8; i++) this.addNPC(null);
-    this.log('Вісім поселенців розклали багаття в долині. Вони вміють розводити вогонь — і більше нічого.', 'era');
+    this.log(msg('log.start'), 'era');
   }
   V.Sim = Sim;
   const P = Sim.prototype;
@@ -894,11 +1394,13 @@ code { font: 12px var(--mono); background: var(--soft); padding: 1px 5px; border
   P.day = function () { return Math.floor(this.tick / this.DAY) + 1; };
   P.phase = function () { return (this.tick % this.DAY) / this.DAY; };
   P.isNight = function () { const p = this.phase(); return p > 0.78 || p < 0.04; };
-  P.log = function (text, kind = 'life', npc = null) {
-    this.chronicle.push({ day: this.day(), t: this.tick, text, kind, npc: npc ? npc.id : null });
+  /* Повідомлення зберігаються як [ключ, параметри] — перекладаються під час показу */
+  P.log = function (m, kind = 'life', npc = null) {
+    this.chronicle.push({ day: this.day(), t: this.tick, msg: m, kind, npc: npc ? npc.id : null });
     if (this.chronicle.length > 400) this.chronicle.shift();
-    if (npc) { npc.history.unshift(`День ${this.day()}: ${text}`); if (npc.history.length > 12) npc.history.pop(); }
+    if (npc) { npc.history.unshift({ day: this.day(), msg: m }); if (npc.history.length > 12) npc.history.pop(); }
   };
+  const think = (n, key, p) => { n.thought = msg(key, p); n.thoughtLLM = false; };
 
   /* ---------- Поселенці ---------- */
   P.addNPC = function (parents) {
@@ -913,7 +1415,7 @@ code { font: 12px var(--mono); background: var(--soft); padding: 1px 5px; border
       curiosity: 0.3 + rnd() * 0.7, sociability: 0.3 + rnd() * 0.7, diligence: 0.3 + rnd() * 0.7,
       hunger: 20 + rnd() * 20, energy: 70 + rnd() * 30, social: rnd() * 30, health: 100,
       skill: { gather: 1, hunt: 1, craft: 1, teach: 1 },
-      know: new Set(), insp: 0, val: {}, task: null, carry: null, thought: 'Оглядаюся довкола.',
+      know: new Set(), insp: 0, val: {}, task: null, carry: null, thought: ['th.look', {}], thoughtLLM: false,
       history: [], failures: new Set(), hints: {}, friends: {}, inventions: [], taughtCount: 0,
       hunts: 0, gathers: 0, heatTries: 0, ageTicks: parents ? 0 : this.DAY * 3, parents: parents ? parents.map(p => p.id) : null,
       llmNote: '',
@@ -940,7 +1442,7 @@ code { font: 12px var(--mono); background: var(--soft); padding: 1px 5px; border
     if (n.know.has(key)) return false;
     n.know.add(key);
     if (key.startsWith('m:')) this.worldKnown.add(key.slice(2));
-    this.reward(n, key.startsWith('i:') ? R.idea : R.learn, how || 'нове знання');
+    this.reward(n, key.startsWith('i:') ? R.idea : R.learn, how || (key.startsWith('i:') ? 'idea' : 'learn'));
     return true;
   };
   P.reward = function (n, amt, why) {
@@ -956,7 +1458,7 @@ code { font: 12px var(--mono); background: var(--soft); padding: 1px 5px; border
   P.devQ = function (idea) { return this.devices[idea] ? this.devices[idea].quality : 0; };
   P.useDev = function (n, idea) {
     const d = this.devices[idea];
-    if (d && d.inventor !== n.id) { const inv = this.npcs.find(x => x.id === d.inventor); if (inv) this.reward(inv, R.impact, 'інші користуються моїм винаходом'); }
+    if (d && d.inventor !== n.id) { const inv = this.npcs.find(x => x.id === d.inventor); if (inv) this.reward(inv, R.impact, 'impact'); }
   };
 
   /* Температура, яку дає табір */
@@ -988,7 +1490,17 @@ code { font: 12px var(--mono); background: var(--soft); padding: 1px 5px; border
     if (!V.walkable(this.world, n.x, n.y)) { n.x = this.world.camp.x; n.y = this.world.camp.y; }
     return false;
   };
-  P.campSpot = function (n) { const a = (n.id * 2.4) % 6.28; const r = 1.2 + (n.id % 3) * 0.5; return { x: this.world.camp.x + Math.cos(a) * r, y: this.world.camp.y + Math.sin(a) * r }; };
+  /* Місце поселенця біля вогнища — завжди на суходолі */
+  P.campSpot = function (n) {
+    if (n.spot) return n.spot;
+    const c = this.world.camp;
+    for (let k = 0; k < 24; k++) {
+      const a = (n.id * 2.4 + k * 0.7) % 6.28, r = 1.2 + ((n.id + k) % 3) * 0.5;
+      const p = { x: c.x + Math.cos(a) * r, y: c.y + Math.sin(a) * r };
+      if (V.walkable(this.world, p.x, p.y)) return (n.spot = p);
+    }
+    return (n.spot = { x: c.x, y: c.y });
+  };
 
   /* Знайти найближчу клітинку з ресурсом */
   P.findRes = function (n, res) {
@@ -1004,7 +1516,7 @@ code { font: 12px var(--mono); background: var(--soft); padding: 1px 5px; border
     let best = null, bd = 1e9;
     const w = this.world;
     for (const t of w.tiles) {
-      if (w.isWater(t) || t.t === V.T.MOUNT) continue;
+      if (w.isWater(t) || t.t === V.TER.MOUNT) continue;
       let fish = 0;
       for (const [i, j] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const u = w.at(t.x + i, t.y + j); if (u && w.isWater(u)) fish = Math.max(fish, u.fish); }
       if (fish < 1.5) continue;
@@ -1021,34 +1533,34 @@ code { font: 12px var(--mono); background: var(--soft); padding: 1px 5px; border
       const t = w.at(cx + i, cy + j); if (!t) continue;
       if (t.r && !n.know.has('m:' + t.r)) {
         const first = !this.worldKnown.has(t.r);
-        this.learn(n, 'm:' + t.r, 'знайшов новий матеріал');
-        if (first) this.log(`${n.name} вперше ${g(n, 'знаходить', 'знаходить')} у долині: ${M[t.r].name}.`, 'find', n);
+        this.learn(n, 'm:' + t.r, 'foundMat');
+        if (first) this.log(msg('log.find', { n: n.name, m: t.r }), 'find', n);
       }
-      if (w.isWater(t) && t.fish > 2 && !n.know.has('m:fish')) this.learn(n, 'm:fish', 'побачив рибу');
+      if (w.isWater(t) && t.fish > 2 && !n.know.has('m:fish')) this.learn(n, 'm:fish', 'sawFish');
     }
   };
 
   /* ---------- Ідеї: виникають із проблем ---------- */
   P.checkIdeas = function (n) {
     const k = x => n.know.has(x);
-    const unlock = (id, why) => {
-      if (!k('i:' + id) && this.learn(n, 'i:' + id, 'нова ідея')) {
-        n.thought = why.charAt(0).toUpperCase() + why.slice(1);
-        if (!this.ideasSeen.has(id)) { this.ideasSeen.add(id); this.log(`${n.name} замислюється: ${why}`, 'idea', n); }
+    const unlock = id => {
+      if (!k('i:' + id) && this.learn(n, 'i:' + id, 'idea')) {
+        think(n, 'th.idea', { w: id });
+        if (!this.ideasSeen.has(id)) { this.ideasSeen.add(id); this.log(msg('log.idea', { n: n.name, w: id }), 'idea', n); }
       }
     };
-    if (k('m:clay') && (k('l:cook') || this.day() >= 2)) unlock('vessel', 'якби мати щось, що тримає воду над вогнем…');
-    if (n.hints.air || n.hints.hotter) unlock('kiln', 'треба загородити вогонь, щоб жар не розходився.');
-    if (n.hints.hotter && this.structures.kiln) unlock('bellows', 'а якщо дмухати в піч повітрям?');
-    if (k('m:fish') && k('m:fiber')) unlock('net', 'риба близько — от би її чимось вичерпати.');
-    if (k('d:net') || (k('m:fish') && k('m:wood') && this.day() >= 4)) unlock('raft', 'деревина тримається на воді… а людина на ній?');
-    if (n.gathers >= 12) unlock('cart', 'носити все в руках — надто повільно.');
-    if (n.hunts >= 3 && k('m:fiber')) unlock('pen', 'а що як тримати тварин поруч, замість ганятися за ними?');
-    if ((k('m:brick') || k('m:mortar') || k('m:stone')) && this.day() >= 3 && this.structures.kiln) unlock('house', 'стіни, що тримають жар у печі, втримають і тепло вночі.');
-    if (k('m:glass')) unlock('lens', 'крізь скло все здається більшим!');
-    if (n.taughtCount >= 5 && k('m:clay')) unlock('tablet', 'якщо видряпати знання на глині, їх не забудуть.');
+    if (k('m:clay') && (k('l:cook') || this.day() >= 2)) unlock('vessel');
+    if (n.hints.air || n.hints.hotter) unlock('kiln');
+    if (n.hints.hotter && this.structures.kiln) unlock('bellows');
+    if (k('m:fish') && k('m:fiber')) unlock('net');
+    if (k('d:net') || (k('m:fish') && k('m:wood') && this.day() >= 4)) unlock('raft');
+    if (n.gathers >= 12) unlock('cart');
+    if (n.hunts >= 3 && k('m:fiber')) unlock('pen');
+    if ((k('m:brick') || k('m:mortar') || k('m:stone')) && this.day() >= 3 && this.structures.kiln) unlock('house');
+    if (k('m:glass')) unlock('lens');
+    if (n.taughtCount >= 5 && k('m:clay')) unlock('tablet');
     const metals = [...n.know].filter(x => x.startsWith('m:') && M[x.slice(2)] && M[x.slice(2)].cond >= 0.9).length;
-    if (metals >= 2 && (k('m:salt') || k('m:quicklime'))) unlock('cell', 'два різні метали в солоній воді щипають язик — у цьому щось є.');
+    if (metals >= 2 && (k('m:salt') || k('m:quicklime'))) unlock('cell');
   };
 
   /* ---------- Варіанти експериментів ---------- */
@@ -1147,12 +1659,12 @@ code { font: 12px var(--mono); background: var(--soft); padding: 1px 5px; border
     const T = fuel ? this.temp(fuel) : { t: 0, raw: 0, cap: Infinity, enclosed: false };
 
     if (plan.type === 'heat') {
-      for (const id of plan.inputs) if (!this.take(id)) return this.fail(n, `забракло: ${M[id].name}`, plan);
+      for (const id of plan.inputs) if (!this.take(id)) return this.fail(n, id, plan);
       if (fuel) this.take(fuel);
       n.heatTries++;
       const res = V.heat(plan.inputs, T.t, T.enclosed);
-      const names = plan.inputs.map(id => M[id].name).join(' + ');
-      if (T.raw > T.cap && !res.ok) { n.hints.wall = true; this.log(`${n.name}: стіни печі тріщать — вище ${Math.round(T.cap)}°C вони не витримують.`, 'hint', n); }
+      const ms = plan.inputs.slice();
+      if (T.raw > T.cap && !res.ok) { n.hints.wall = true; this.log(msg('log.wall', { n: n.name, cap: Math.round(T.cap) }), 'hint', n); }
       if (res.ok) {
         const out = res.out, k = out === 'cooked' ? 2 : 3;
         this.give(out, k);
@@ -1160,20 +1672,20 @@ code { font: 12px var(--mono); background: var(--soft); padding: 1px 5px; border
         const first = !this.worldKnown.has(out);
         if (this.learn(n, 'm:' + out)) { /* винагорода в learn */ }
         if (first) {
-          this.reward(n, R.material, 'відкрив новий матеріал');
+          this.reward(n, R.material, 'newMat');
           const cold = V.LAWS.find(l => l.id === res.law).minT === 0;
-          this.discoveries.push({ day: this.day(), kind: 'material', id: out, name: M[out].name, by: n.id, how: cold ? `${names}, без нагрівання` : `${names} при ${Math.round(T.t)}°C`, why: res.why, real: true });
-          this.log(`★ ${n.name} ${cold ? 'поєднує' : 'нагріває'} ${names}${cold ? '' : ` до ${Math.round(T.t)}°C`} і отримує новий матеріал — ${M[out].name}! (${res.why})`, 'discovery', n);
-          n.thought = `Вийшло! ${M[out].name}!`;
-        } else { n.thought = `Знову вийшло: ${M[out].name}.`; this.reward(n, 1, 'корисна робота'); }
+          this.discoveries.push({ day: this.day(), kind: 'material', id: out, by: n.id, how: msg('how.heat', { ms, cold, t: Math.round(T.t) }), why: msg('raw', { s: '' }), law: res.law, real: true });
+          this.log(msg('log.discMat', { n: n.name, cold, ms, t: Math.round(T.t), m: out, law: res.law }), 'discovery', n);
+          think(n, 'th.success', { m: out });
+        } else { think(n, 'th.again', { m: out }); this.reward(n, 1, 'work'); }
         n.hints.hotter = false;
         return;
       }
       n.failures.add(JSON.stringify(plan) + '@' + Math.round(T.t / 100));
-      if (res.hint === 'hotter') { n.hints.hotter = true; n.hints.hotterSet = plan.inputs.slice().sort().join('+'); this.reward(n, 3, 'цінне спостереження'); this.log(`${n.name}: ${names} — ${res.note}`, 'hint', n); }
-      else if (res.hint === 'air') { n.hints.air = true; this.reward(n, 3, 'цінне спостереження'); this.log(`${n.name}: ${names} — ${res.note}`, 'hint', n); }
-      else this.reward(n, R.fail, 'спроба');
-      n.thought = res.note;
+      if (res.hint === 'hotter') { n.hints.hotter = true; n.hints.hotterSet = plan.inputs.slice().sort().join('+'); this.reward(n, 3, 'observe'); this.log(msg('log.hint', { n: n.name, ms, note: res.note }), 'hint', n); }
+      else if (res.hint === 'air') { n.hints.air = true; this.reward(n, 3, 'observe'); this.log(msg('log.hint', { n: n.name, ms, note: res.note }), 'hint', n); }
+      else this.reward(n, R.fail, 'fail');
+      n.thought = res.note; n.thoughtLLM = false;
       this.checkIdeas(n);
       return;
     }
@@ -1182,49 +1694,49 @@ code { font: 12px var(--mono); background: var(--soft); padding: 1px 5px; border
       const idea = V.IDEAS[plan.idea];
       const need = {};
       plan.parts.forEach(id => need[id] = (need[id] || 0) + (idea.structure ? 2 : 1));
-      for (const id in need) if (this.stock(id) < need[id]) return this.fail(n, `забракло: ${M[id].name}`, plan, true);
+      for (const id in need) if (this.stock(id) < need[id]) return this.fail(n, id, plan);
       for (const id in need) this.take(id, need[id]);
       const ev = V.evaluate(plan.idea, plan.parts.map(id => M[id]));
-      const desc = plan.parts.map((id, i) => `${V.SLOT[idea.slots[i]].name} — ${M[id].name}`).join(', ');
+      const parts = plan.parts.map((id, i) => [idea.slots[i], id]);
       const cur = this.devices[plan.idea];
       if (ev.works) {
         if (!cur || ev.quality > cur.quality + 0.05) {
           const isNew = !cur;
-          const name = plan.name || (isNew ? idea.name : `${idea.name} (вдосконалений)`);
-          this.devices[plan.idea] = { idea: plan.idea, parts: plan.parts, quality: ev.quality, inventor: n.id, day: this.day(), name, extra: ev.extra };
+          const dev = { idea: plan.idea, parts: plan.parts, quality: ev.quality, inventor: n.id, day: this.day(), custom: plan.name || null, improved: !isNew, extra: ev.extra };
+          this.devices[plan.idea] = dev;
           n.know.add('d:' + plan.idea);
-          n.inventions.push(name);
+          if (!n.inventions.includes(plan.idea)) n.inventions.push(plan.idea);
           if (idea.structure) this.buildStructure(plan.idea, plan.parts, ev);
           if (isNew) {
             const bonus = Math.round(R.invent * Math.min(1.2, ev.quality));
-            this.reward(n, bonus, 'новий винахід працює');
-            this.discoveries.push({ day: this.day(), kind: 'device', id: plan.idea, name, by: n.id, how: desc, why: idea.effect, quality: ev.quality, extra: ev.extra });
-            const v = ev.extra && ev.extra.volts ? ` Напруга ${ev.extra.volts.toFixed(2)} В.` : '';
-            this.log(`★ ${n.name} винаходить: ${name}! (${desc}) — працює, якість ${ev.quality}.${v}`, 'discovery', n);
-            n.thought = `Мій ${idea.name} працює!`;
+            this.reward(n, bonus, 'invent');
+            this.discoveries.push({ day: this.day(), kind: 'device', id: plan.idea, dev: Object.assign({}, dev), by: n.id, how: msg('raw', { s: '' }), parts, quality: ev.quality, extra: ev.extra });
+            const volts = ev.extra && ev.extra.volts ? ev.extra.volts.toFixed(2) : null;
+            this.log(msg('log.invent', { n: n.name, dev: Object.assign({}, dev), parts, q: ev.quality, volts }), 'discovery', n);
+            think(n, 'th.invent', { idea: plan.idea });
           } else {
-            this.reward(n, R.improve, 'покращив винахід');
-            this.discoveries.push({ day: this.day(), kind: 'improve', id: plan.idea, name, by: n.id, how: desc, quality: ev.quality });
-            this.log(`${n.name} вдосконалює ${idea.name}: ${desc}. Якість ${cur.quality} → ${ev.quality}.`, 'improve', n);
+            this.reward(n, R.improve, 'improve');
+            this.discoveries.push({ day: this.day(), kind: 'improve', id: plan.idea, dev: Object.assign({}, dev), by: n.id, parts, quality: ev.quality });
+            this.log(msg('log.improve', { n: n.name, idea: plan.idea, parts, q0: cur.quality, q1: ev.quality }), 'improve', n);
           }
           if (plan.idea === 'kiln') n.hints.wall = false;
         } else {
           n.know.add('d:' + plan.idea);
-          this.reward(n, 2, 'відтворив відому конструкцію');
-          n.thought = `Мій ${idea.name} не кращий за наявний.`;
+          this.reward(n, 2, 'copied');
+          think(n, 'th.notBetter', { idea: plan.idea });
           n.failures.add(sig);
         }
         return;
       }
       n.failures.add(sig);
-      const weak = V.SLOT[ev.weakSlot].name;
+      const weak = ev.weakSlot;
       if (ev.partial) {
-        this.reward(n, R.partial, 'майже вийшло');
-        n.thought = `${idea.name} майже працює, але ${weak} підводить.`;
-        this.log(`${n.name} пробує ${idea.name} (${desc}) — майже, але ${weak} не годиться.`, 'try', n);
+        this.reward(n, R.partial, 'partial');
+        think(n, 'th.partial', { idea: plan.idea, slot: weak });
+        this.log(msg('log.partial', { n: n.name, idea: plan.idea, parts, slot: weak }), 'try', n);
       } else {
-        this.reward(n, R.fail, 'спроба');
-        n.thought = `${idea.name} з такого не вийде: ${weak} нікуди не годиться.`;
+        this.reward(n, R.fail, 'fail');
+        think(n, 'th.fail', { idea: plan.idea, slot: weak });
       }
       return;
     }
@@ -1232,15 +1744,15 @@ code { font: 12px var(--mono); background: var(--soft); padding: 1px 5px; border
     if (plan.type === 'alloy' || plan.type === 'composite') return this.makeMaterial(n, plan, T);
   };
 
-  P.fail = function (n, why, plan, gatherNeeded) {
-    n.thought = `Не можу почати: ${why}.`;
-    this.reward(n, 0.2, 'спроба');
+  P.fail = function (n, missing, plan) {
+    think(n, 'th.cantStart', { m: missing });
+    this.reward(n, 0.2, 'fail');
     if (plan) n.goalMats = (plan.inputs || plan.parts || []).filter(id => this.stock(id) < 2 && V.BASE_RESOURCES.includes(id));
   };
 
   P.buildStructure = function (idea, parts, ev) {
     const m = M[parts[0]];
-    if (idea === 'kiln') { this.structures.kiln = { wall: parts[0], hp: m.hp, name: m.name }; }
+    if (idea === 'kiln') { this.structures.kiln = { wall: parts[0], hp: m.hp }; }
     else if (idea === 'bellows') this.structures.bellows = { parts };
     else if (idea === 'pen') this.structures.pen = { parts };
     else if (idea === 'house') { this.structures.house = { parts }; this.houses = Math.max(this.houses, 1); }
@@ -1253,13 +1765,13 @@ code { font: 12px var(--mono); background: var(--soft); padding: 1px 5px; border
     const isAlloy = plan.type === 'alloy';
     const a = isAlloy ? plan.base : plan.matrix, b = isAlloy ? plan.add : plan.filler;
     const need = isAlloy ? (b === 'charcoal' ? 1100 : Math.max(M[a].mp, M[b].mp)) : 0;
-    if (!this.take(a)) return this.fail(n, `забракло: ${M[a].name}`, plan);
-    if (!this.take(b)) { this.give(a); return this.fail(n, `забракло: ${M[b].name}`, plan); }
+    if (!this.take(a)) return this.fail(n, a, plan);
+    if (!this.take(b)) { this.give(a); return this.fail(n, b, plan); }
     if (isAlloy && T.t < need) {
       n.hints.hotter = true;
-      this.reward(n, 2, 'цінне спостереження');
-      n.thought = `${M[a].name} і ${M[b].name} не змішуються — треба розплавити, а це ${need}°C.`;
-      this.log(`${n.name} намагається сплавити ${M[a].name} з ${M[b].name}, але печі не вистачає жару (${Math.round(T.t)}°C).`, 'hint', n);
+      this.reward(n, 2, 'observe');
+      think(n, 'th.needHeat', { m: a, m2: b === 'charcoal' ? 'carbon' : b, t: need });
+      this.log(msg('log.needHeat', { n: n.name, m: a, m2: b === 'charcoal' ? 'carbon' : b, t: Math.round(T.t) }), 'hint', n);
       this.checkIdeas(n);
       return;
     }
@@ -1272,33 +1784,33 @@ code { font: 12px var(--mono); background: var(--soft); padding: 1px 5px; border
     if (existing) {
       this.give(existing.id, 2);
       this.learn(n, 'm:' + existing.id);
-      this.reward(n, 1, 'повторив рецепт');
-      n.thought = `Вийшов знайомий ${existing.name}.`;
+      this.reward(n, 1, 'recipe');
+      think(n, 'th.known', { m: existing.id });
       return;
     }
     // ще не досить міцне — розсипається
     if (props.tough < 0.4 || props.hard < 0.3) {
-      this.reward(n, R.fail, 'спроба');
-      n.thought = 'Суміш розсипалася на порох.';
-      this.log(`${n.name}: суміш ${V.describeComp(props.comp)} розсипалася.`, 'try', n);
+      this.reward(n, R.fail, 'fail');
+      think(n, 'th.crumble');
+      this.log(msg('log.crumble', { n: n.name, comp: props.comp }), 'try', n);
       return;
     }
     const real = V.matchReal(props.comp);
     const id = 'g' + (++this.genCount);
     const pool = Object.values(M).filter(m => this.worldKnown.has(m.id));
-    let name, desc;
+    let name, nearest = null, withComp = false, word = null;
     if (real) {
       name = real.name;
-      desc = `${real.note}. Склад: ${V.describeComp(props.comp)}.`;
+      // реальна назва вже зайнята іншою пропорцією — показуємо ще й склад
+      if (Object.values(M).some(m => m.realIdx === real.idx)) withComp = true;
     } else {
-      name = plan.name && plan.name.length < 30 ? plan.name : V.inventWord(this.rnd);
-      const near = V.nearest(props, pool.concat(V.REAL_PROPS || []));
-      desc = `Нового типу: ${isAlloy ? 'сплав' : 'композит'} ${V.describeComp(props.comp)}. У реальному світі окремої назви не має. Найближчий за властивостями: ${near ? near.name : '—'}.`;
+      if (plan.name && plan.name.length < 30) name = plan.name; else { word = V.inventWord(this.rnd); name = word.join('-'); }
+      const near = V.nearest(props, pool);
+      nearest = near ? near.id : null;
+      if (Object.values(M).some(m => m.name === name)) withComp = true;
     }
-    // якщо реальна назва вже зайнята (інша пропорція того ж класу) — додаємо пропорцію
-    if (Object.values(M).some(m => m.name === name)) name = `${name} (${V.describeComp(props.comp)})`;
     const color = isAlloy ? mixColor(M[a].color, M[b] ? M[b].color : '#333', f) : mixColor(M[a].color, M[b].color, f);
-    const mat = Object.assign({ id, name, kind: isAlloy ? 'alloy' : 'composite', trans: 0, fuel: 0, food: 0, ion: 0, air: 0, binder: 0, plast: 0, hp: 0, mp: 0, cond: 0, pot: 0, sharp: 0, wp: 0 }, props, { sig: sigKey, real: !!real, desc, color, inventor: n.id, day: this.day() });
+    const mat = Object.assign({ id, name, kind: isAlloy ? 'alloy' : 'composite', trans: 0, fuel: 0, food: 0, ion: 0, air: 0, binder: 0, plast: 0, hp: 0, mp: 0, cond: 0, pot: 0, sharp: 0, wp: 0 }, props, { sig: sigKey, real: !!real, realIdx: real ? real.idx : null, nearest, withComp, word, color, inventor: n.id, day: this.day() });
     if (!mat.hp) mat.hp = mat.mp ? mat.mp - 100 : 300;
     if (isAlloy) mat.kind = 'metal', mat.alloy = true;
     M[id] = mat;
@@ -1310,18 +1822,16 @@ code { font: 12px var(--mono); background: var(--soft); padding: 1px 5px; border
       if (sc < 0.6) continue;
       let best = 0;
       for (const m of pool) if (m.kind !== 'food' && m.kind !== 'ore') best = Math.max(best, V.SLOT[s].test(m));
-      if (sc > best + 0.05) usefulFor.push(V.SLOT[s].name);
+      if (sc > best + 0.05) usefulFor.push(s);
     }
     this.learn(n, 'm:' + id);
-    this.reward(n, real || usefulFor.length ? R.material : 4, 'створив новий матеріал');
-    if (usefulFor.length) this.reward(n, R.useful, 'новий матеріал працює краще за відомі');
+    this.reward(n, real || usefulFor.length ? R.material : 4, 'newMat');
+    if (usefulFor.length) this.reward(n, R.useful, 'useful');
     mat.usefulFor = usefulFor;
-    this.discoveries.push({ day: this.day(), kind: 'material', id, name, by: n.id, how: V.describeComp(props.comp), why: desc, real: !!real, useful: usefulFor });
-    const tag = real ? 'справжній матеріал' : 'невідомий у реальному світі';
-    const use = usefulFor.length ? ` Найкращий для: ${usefulFor.join(', ')}!` : '';
-    if (!real && !usefulFor.length) { this.log(`${n.name} змішує ${V.describeComp(props.comp)} і називає це «${name}». Поки незрозуміло, навіщо воно.`, 'try', n); n.thought = `«${name}»… цікаво, але навіщо?`; this.checkIdeas(n); return; }
-    this.log(`★ ${n.name} створює ${isAlloy ? 'сплав' : 'композит'} «${name}» (${tag}): ${V.describeComp(props.comp)}.${use}`, 'discovery', n);
-    n.thought = `Новий матеріал — «${name}»!`;
+    this.discoveries.push({ day: this.day(), kind: 'material', id, by: n.id, how: msg('raw', { s: '' }), comp: props.comp, real: !!real, useful: usefulFor });
+    if (!real && !usefulFor.length) { this.log(msg('log.junk', { n: n.name, comp: props.comp, m: id }), 'try', n); think(n, 'th.junk', { m: id }); this.checkIdeas(n); return; }
+    this.log(msg('log.newMat', { n: n.name, alloy: isAlloy, m: id, real: !!real, comp: props.comp, useful: usefulFor }), 'discovery', n);
+    think(n, 'th.newMat', { m: id });
     this.checkIdeas(n);
   };
 
@@ -1336,11 +1846,12 @@ code { font: 12px var(--mono); background: var(--soft); padding: 1px 5px; border
     const rnd = this.rnd;
     const night = this.isNight();
     if (!isAdult(this, n)) {
-      if (night || n.energy < 30) return this.setTask(n, 'sleep');
       if (n.hunger > 55 && this.foodStock() > 0) return this.setTask(n, 'eat');
+      if (night || n.energy < 30) return this.setTask(n, 'sleep');
       return this.setTask(n, 'play');
     }
-    if ((night && n.energy < 90) || n.energy < 18) return this.setTask(n, 'sleep');
+    const starving = n.hunger > 75;
+    if (!starving && ((night && n.energy < 90) || n.energy < 18)) return this.setTask(n, 'sleep');
     if (n.hunger > 60) {
       if (this.foodStock() > 0) return this.setTask(n, 'eat');
       if (this.hasDev(n, 'net')) return this.setTask(n, 'fish');
@@ -1407,31 +1918,46 @@ code { font: 12px var(--mono); background: var(--soft); padding: 1px 5px; border
     n.social = Math.min(100, n.social + 0.04);
     if (n.hunger >= 100) n.health -= 0.06; else n.health = Math.min(100, n.health + 0.01 * (this.structures.house ? 2 : 1));
     if (n.health <= 0) { this.die(n); return; }
+    // сильний голод перериває будь-яку справу, крім пошуку їжі
+    if (n.hunger > 85) {
+      if (n.carry && FOODS.includes(n.carry.id)) {           // з'їсти принесене просто на ходу
+        n.hunger = Math.max(0, n.hunger - M[n.carry.id].food); n.carry.k--;
+        if (n.carry.k <= 0) n.carry = null;
+      }
+      const t0 = n.task;
+      const forFood = t0 && (t0.type === 'eat' || t0.type === 'hunt' || t0.type === 'fish' || (t0.type === 'gather' && t0.res === 'berries'));
+      if (t0 && !forFood && !(t0.type === 'sleep' && n.energy < 5)) {
+        if (n.carry) { this.give(n.carry.id, n.carry.k); n.carry = null; }
+        if (t0.type === 'teach') { const m = this.npcs.find(x => x.id === t0.partner); if (m && m.task && m.task.type === 'listen') this.endTask(m); }
+        this.endTask(n);
+      }
+    }
     if (!n.task) this.decide(n);
     const t = n.task; t.t++;
     const camp = this.world.camp;
-    const toCamp = () => { const s = this.campSpot(n); return this.moveTo(n, s.x, s.y); };
+    // дійшов, якщо поруч із вогнищем або довго не може пробратися до свого місця
+    const toCamp = () => { const s = this.campSpot(n); return this.moveTo(n, s.x, s.y) || (t.t > 400 && Math.hypot(n.x - camp.x, n.y - camp.y) < 3.5); };
 
     switch (t.type) {
       case 'sleep':
-        if (t.phase === 0) { n.thought = 'Час відпочити.'; if (toCamp()) t.phase = 1; }
+        if (t.phase === 0) { think(n, 'th.rest'); if (toCamp() || t.t > 300) t.phase = 1; }   // не дійшов — спить, де застала втома
         else { n.energy = Math.min(100, n.energy + 0.22 * (this.structures.house ? 1.5 : 1)); if (n.energy >= 99 && !this.isNight()) this.endTask(n); if (!this.isNight() && n.energy > 85 && n.hunger > 70) this.endTask(n); }
         break;
       case 'eat':
-        if (toCamp()) {
+        if (toCamp() || t.t > 500) {   // заблукав — їсть зі своїх запасів у дорозі
           const f = FOODS.find(x => this.stock(x) > 0);
           if (f) {
             let food = M[f].food;
             if ((f === 'meat' || f === 'fish') && n.know.has('l:cook') && this.stock('wood') > 0) { food = M.cooked.food; this.take('wood'); }
             if (this.hasDev(n, 'vessel') && f !== 'berries') { food *= 1.3; this.useDev(n, 'vessel'); }
             this.take(f); n.hunger = Math.max(0, n.hunger - food);
-            n.thought = `Поїв: ${M[f].name}.`;
+            think(n, 'th.ate', { m: f });
           }
           this.endTask(n);
         }
         break;
       case 'play':
-        if (t.phase === 0) { t.tx = camp.x + (rnd() - 0.5) * 6; t.ty = camp.y + (rnd() - 0.5) * 6; t.phase = 1; n.thought = 'Граюся біля табору!'; }
+        if (t.phase === 0) { t.tx = camp.x + (rnd() - 0.5) * 6; t.ty = camp.y + (rnd() - 0.5) * 6; t.phase = 1; think(n, 'th.play'); }
         if (this.moveTo(n, t.tx, t.ty) || t.t > 200) this.endTask(n);
         break;
       case 'gather': this.doGather(n, t); break;
@@ -1451,7 +1977,7 @@ code { font: 12px var(--mono); background: var(--soft); padding: 1px 5px; border
     if (t.phase === 0) {
       t.tile = this.findRes(n, t.res);
       if (!t.tile) { this.endTask(n); return; }
-      n.thought = `Іду по ${M[t.res].name}.`; t.phase = 1;
+      think(n, 'th.goGather', { m: t.res }); t.phase = 1;
     }
     if (t.phase === 1) { if (this.moveTo(n, t.tile.x + 0.5, t.tile.y + 0.5)) { t.phase = 2; t.w = 0; } if (t.t > 900) this.endTask(n); }
     else if (t.phase === 2) {
@@ -1468,7 +1994,7 @@ code { font: 12px var(--mono); background: var(--soft); padding: 1px 5px; border
       }
     } else if (t.phase === 3) {
       const s = this.campSpot(n);
-      if (this.moveTo(n, s.x, s.y)) { this.give(n.carry.id, n.carry.k); this.reward(n, R.gather * n.carry.k, 'приніс до табору'); n.carry = null; this.endTask(n); }
+      if (this.moveTo(n, s.x, s.y)) { this.give(n.carry.id, n.carry.k); this.reward(n, R.gather * n.carry.k, 'gather'); n.carry = null; this.endTask(n); }
     }
   };
 
@@ -1479,11 +2005,11 @@ code { font: 12px var(--mono); background: var(--soft); padding: 1px 5px; border
       for (const a of this.animals) if (a.alive && a.type !== 'wolf') { const d = Math.hypot(a.x - n.x, a.y - n.y) * (a.type === 'deer' ? 0.8 : 1); if (d < bd) { bd = d; best = a; } }
       if (!best) { this.endTask(n); return; }
       t.target = best.id; t.phase = 1; t.capture = canPen && best.type === 'rabbit' && this.pen < 12 && this.rnd() < 0.5;
-      n.thought = t.capture ? 'Спробую впіймати кроля живим.' : `Полюю на: ${V.ANIMALS[best.type].name}.`;
+      if (t.capture) think(n, 'th.capture'); else think(n, 'th.huntFor', { animal: best.type });
     }
     if (t.phase === 1) {
       const a = this.animals.find(x => x.id === t.target && x.alive);
-      if (!a || t.t > 700) { n.thought = 'Втекло…'; this.endTask(n); return; }
+      if (!a || t.t > 700) { think(n, 'th.escaped'); this.endTask(n); return; }
       this.moveTo(n, a.x, a.y, 1.25);
       if (Math.hypot(a.x - n.x, a.y - n.y) < 0.8 && this.rnd() < 0.15) {
         const spear = this.hasDev(n, 'spear') ? this.devQ('spear') * 0.45 : 0;
@@ -1491,13 +2017,13 @@ code { font: 12px var(--mono); background: var(--soft); padding: 1px 5px; border
         if (this.rnd() < p) {
           a.alive = false; n.hunts++; n.skill.hunt += 0.08; this.stats.hunts++;
           if (spear) this.useDev(n, 'spear');
-          if (t.capture) { this.pen++; this.reward(n, 4, 'приручив тварину'); this.useDev(n, 'pen'); n.thought = 'Кріль у загороді!'; if (this.pen === 1) this.log(`${n.name} приводить першого прирученого кроля в загороду.`, 'life', n); this.endTask(n); return; }
+          if (t.capture) { this.pen++; this.reward(n, 4, 'tamed'); this.useDev(n, 'pen'); think(n, 'th.penned'); if (this.pen === 1) this.log(msg('log.firstPen', { n: n.name }), 'life', n); this.endTask(n); return; }
           const spec = V.ANIMALS[a.type];
           const knife = this.hasDev(n, 'knife') ? 1 : 0;
           if (knife) this.useDev(n, 'knife');
           n.carry = { id: 'meat', k: spec.meat, extra: [['hide', spec.hide + knife], ['bone', spec.bone + knife]] };
-          n.thought = 'Вдале полювання!'; t.phase = 2;
-          this.reward(n, R.hunt, 'вдале полювання');
+          think(n, 'th.goodHunt'); t.phase = 2;
+          this.reward(n, R.hunt, 'hunt');
           if (!n.know.has('m:hide')) this.learn(n, 'm:hide'); if (!n.know.has('m:bone') && spec.bone + knife > 0) this.learn(n, 'm:bone'); if (!n.know.has('m:meat')) this.learn(n, 'm:meat');
         }
       }
@@ -1512,7 +2038,7 @@ code { font: 12px var(--mono); background: var(--soft); padding: 1px 5px; border
   };
 
   P.doFish = function (n, t) {
-    if (t.phase === 0) { t.tile = this.waterEdge(n); if (!t.tile) { this.endTask(n); return; } t.phase = 1; n.thought = 'Йду рибалити.'; }
+    if (t.phase === 0) { t.tile = this.waterEdge(n); if (!t.tile) { this.endTask(n); return; } t.phase = 1; think(n, 'th.goFish'); }
     if (t.phase === 1) { if (this.moveTo(n, t.tile.x + 0.5, t.tile.y + 0.5)) { t.phase = 2; t.w = 0; } if (t.t > 900) this.endTask(n); }
     else if (t.phase === 2) {
       t.w++;
@@ -1522,8 +2048,8 @@ code { font: 12px var(--mono); background: var(--soft); padding: 1px 5px; border
         const q = this.devQ('net') * (this.hasDev(n, 'raft') ? 2 : 1);
         const k = water ? Math.min(Math.floor(water.fish), Math.max(1, Math.round(q * 2))) : 0;
         this.useDev(n, 'net'); if (this.hasDev(n, 'raft')) this.useDev(n, 'raft');
-        if (k > 0) { water.fish -= k; n.carry = { id: 'fish', k }; this.stats.fish += k; this.reward(n, 1.5, 'улов'); n.thought = `Упіймав рибу (${k}).`; t.phase = 3; }
-        else { n.thought = 'Не клює.'; this.endTask(n); }
+        if (k > 0) { water.fish -= k; n.carry = { id: 'fish', k }; this.stats.fish += k; this.reward(n, 1.5, 'catch'); think(n, 'th.caught', { k }); t.phase = 3; }
+        else { think(n, 'th.noBite'); this.endTask(n); }
       }
     } else if (t.phase === 3) {
       const s = this.campSpot(n);
@@ -1541,12 +2067,12 @@ code { font: 12px var(--mono); background: var(--soft); padding: 1px 5px; border
         if (d > 8 && d < 34) { t.tx = tile.x + 0.5; t.ty = tile.y + 0.5; break; }
       }
       if (t.tx === undefined) { this.endTask(n); return; }
-      t.phase = 1; n.thought = 'Цікаво, що там, за пагорбами?';
+      t.phase = 1; think(n, 'th.explore');
     }
     if (t.phase === 1) {
       if (this.moveTo(n, t.tx, t.ty) || t.t > 800) {
         const before = n.know.size; this.look(n, 4);
-        if (n.know.size === before) this.reward(n, 0.3, 'прогулянка'); else this.reward(n, R.explore, 'дослідив місцевість');
+        if (n.know.size === before) this.reward(n, 0.3, 'walk'); else this.reward(n, R.explore, 'explore');
         t.phase = 2;
       }
     } else if (t.phase === 2) { if (this.moveTo(n, this.world.camp.x, this.world.camp.y)) this.endTask(n); }
@@ -1559,17 +2085,17 @@ code { font: 12px var(--mono); background: var(--soft); padding: 1px 5px; border
       const opts = this.experimentOptions(n);
       t.opts = opts;
       if (V.LLM && V.LLM.canPlan()) {
-        t.phase = 1; t.waitFrom = this.tick; n.thought = 'Обмірковую ідею…';
+        t.phase = 1; t.waitFrom = this.tick; think(n, 'th.thinking');
         V.LLM.planExperiment(this, n, opts).then(p => { t.llmPlan = p || 'none'; }).catch(() => { t.llmPlan = 'none'; });
         return;
       }
       t.plan = this.rulePlan(n, opts); t.phase = 2; t.w = 0;
-      if (!t.plan) { n.thought = 'Бракує матеріалів для дослідів.'; n.goalMats = ['clay', 'flint', 'stone', 'fiber'].filter(id => n.know.has('m:' + id)); this.endTask(n); return; }
-      n.thought = planText(t.plan);
+      if (!t.plan) { think(n, 'th.noMats'); n.goalMats = ['clay', 'flint', 'stone', 'fiber'].filter(id => n.know.has('m:' + id)); this.endTask(n); return; }
+      n.thought = planText(t.plan); n.thoughtLLM = false;
     }
     if (t.phase === 1) {
-      if (t.llmPlan && t.llmPlan !== 'none') { t.plan = t.llmPlan; n.llmNote = t.plan.thought || ''; t.phase = 2; t.w = 0; n.thought = t.plan.thought || planText(t.plan); }
-      else if (t.llmPlan === 'none' || this.tick - t.waitFrom > 600) { t.plan = this.rulePlan(n, t.opts); t.phase = 2; t.w = 0; if (!t.plan) { this.endTask(n); return; } n.thought = planText(t.plan); }
+      if (t.llmPlan && t.llmPlan !== 'none') { t.plan = t.llmPlan; t.phase = 2; t.w = 0; if (t.plan.thought) { n.thought = msg('raw', { s: t.plan.thought }); n.thoughtLLM = true; } else { n.thought = planText(t.plan); n.thoughtLLM = false; } }
+      else if (t.llmPlan === 'none' || this.tick - t.waitFrom > 600) { t.plan = this.rulePlan(n, t.opts); t.phase = 2; t.w = 0; if (!t.plan) { this.endTask(n); return; } n.thought = planText(t.plan); n.thoughtLLM = false; }
       return;
     }
     if (t.phase === 2) {
@@ -1578,11 +2104,10 @@ code { font: 12px var(--mono); background: var(--soft); padding: 1px 5px; border
     }
   };
   function planText(p) {
-    if (p.type === 'heat') return `Спробую нагріти: ${p.inputs.map(id => M[id].name).join(' + ')}.`;
-    if (p.type === 'build') return `Майструю ${V.IDEAS[p.idea].name}: ${p.parts.map(id => M[id].name).join(', ')}.`;
-    if (p.type === 'alloy') return `Сплавляю ${M[p.base].name} з ${p.add === 'charcoal' ? 'вуглецем' : M[p.add].name}.`;
-    if (p.type === 'composite') return `Змішую ${M[p.matrix].name} з ${M[p.filler].name}.`;
-    return 'Думаю.';
+    if (p.type === 'heat') return msg('plan.heat', { ms: p.inputs });
+    if (p.type === 'build') return msg('plan.build', { idea: p.idea, ms: p.parts });
+    if (p.type === 'alloy') return msg('plan.alloy', { m: p.base, m2: p.add === 'charcoal' ? 'carbon' : p.add });
+    return msg('plan.comp', { m: p.matrix, m2: p.filler });
   }
 
   P.teachable = function (a, b) {
@@ -1593,15 +2118,6 @@ code { font: 12px var(--mono); background: var(--soft); padding: 1px 5px; border
     return out;
     function rank(k) { return k.startsWith('d:') ? 4 : k.startsWith('l:') ? 3 : k.startsWith('i:') ? 2 : 1; }
   };
-  V.knowName = function (k) {
-    const id = k.slice(2);
-    if (k.startsWith('m:')) return M[id] ? M[id].name : id;
-    if (k.startsWith('d:')) return 'як зробити: ' + (V.IDEAS[id] ? V.IDEAS[id].name : id);
-    if (k.startsWith('i:')) return 'ідея: ' + (V.IDEAS[id] ? V.IDEAS[id].name : id);
-    if (k.startsWith('l:')) { const l = V.LAWS.find(x => x.id === id); return l ? 'закон: ' + l.inputs.map(x => M[x].name).join('+') + ' → ' + M[l.out].name : id; }
-    return k;
-  };
-
   P.doTeach = function (n, t) {
     if (t.phase === 0) {
       let best = null, bs = -1;
@@ -1613,7 +2129,7 @@ code { font: 12px var(--mono); background: var(--soft); padding: 1px 5px; border
         if (s > bs) { bs = s; best = m; }
       }
       if (!best) { this.endTask(n); return; }
-      t.partner = best.id; t.phase = 1; n.thought = `Іду поговорити. Співрозмовник: ${best.name}.`;
+      t.partner = best.id; t.phase = 1; think(n, 'th.talkTo', { n: best.name });
     }
     const m = this.npcs.find(x => x.id === t.partner);
     if (!m) { this.endTask(n); return; }
@@ -1631,20 +2147,20 @@ code { font: 12px var(--mono); background: var(--soft); padding: 1px 5px; border
       t.w++;
       if (t.w >= 70) {
         let learned = 0;
-        for (const k of t.items) if (this.learn(m, k, 'навчився в іншого')) { learned++; this.reward(m, R.taught, 'мене навчили'); }
-        if (learned) { this.reward(n, R.teach * learned, 'допоміг іншому розвиватися'); n.taughtCount += learned; n.skill.teach += 0.1 * learned; this.stats.taught += learned; }
-        else this.reward(n, 1, 'гарна розмова');
+        for (const k of t.items) if (this.learn(m, k, 'taughtBy')) { learned++; this.reward(m, R.taught, 'wasTaught'); }
+        if (learned) { this.reward(n, R.teach * learned, 'teach'); n.taughtCount += learned; n.skill.teach += 0.1 * learned; this.stats.taught += learned; }
+        else this.reward(n, 1, 'chat');
         // допомога голодному
         if (m.hunger > 55 && this.foodStock() > 0) {
           const f = FOODS.find(x => this.stock(x) > 0); this.take(f); m.hunger = Math.max(0, m.hunger - M[f].food);
-          this.reward(n, R.help, 'нагодував іншого');
-          if (this.rnd() < 0.15) this.log(`${n.name} помічає, що ${m.name} ${g(m, 'голодний', 'голодна')}, і ділиться їжею.`, 'help', n);
+          this.reward(n, R.help, 'fed');
+          if (this.rnd() < 0.15) this.log(msg('log.help', { n: n.name, n2: m.name }), 'help', n);
         }
         n.social = Math.max(0, n.social - 50); m.social = Math.max(0, m.social - 40);
         n.friends[m.id] = (n.friends[m.id] || 0) + 8; m.friends[n.id] = (m.friends[n.id] || 0) + 8;
         if (t.lines && t.lines.length) {
           n.lastLine = t.lines[0]; if (t.lines[1]) m.lastLine = t.lines[1];
-          if (learned && this.rnd() < 0.5) this.log(`${n.name}: «${t.lines[0]}»${t.lines[1] ? ` — ${m.name}: «${t.lines[1]}»` : ''}`, 'talk', n);
+          if (learned && this.rnd() < 0.5) this.log(msg('log.talk', { n: n.name, n2: m.name, a: t.lines[0], b: t.lines[1] || null }), 'talk', n);
         }
         if (m.task && m.task.type === 'listen') this.endTask(m);
         this.endTask(n);
@@ -1655,17 +2171,13 @@ code { font: 12px var(--mono); background: var(--soft); padding: 1px 5px; border
   P.dialogue = function (a, b, items) {
     const rnd = this.rnd;
     if (!items.length) {
-      const small = ['Як тобі сьогоднішній день?', 'Бачив, скільки кролів на луці?', 'Вогонь сьогодні гарно горить.', 'Чула, як вовки вили вночі?'];
-      const ans = ['Добрий день, працюємо!', 'Ага, треба б на них полювати.', 'Тепло — це головне.', 'Тримаймося ближче до вогню.'];
-      const i = Math.floor(rnd() * small.length); return [small[i], ans[i]];
+      const i = Math.floor(rnd() * 4); return [msg('small.' + i), msg('ans.' + i)];
     }
-    const k = items[0], name = V.knowName(k);
-    const id = k.slice(2);
-    if (k.startsWith('d:')) { const d = this.devices[id]; return [`Дивись, ${V.IDEAS[id].name} робиться так: ${d ? d.parts.map(x => M[x].name).join(', ') : ''}.`, 'О, тепер і я так зможу!']; }
-    if (k.startsWith('l:')) { const l = V.LAWS.find(x => x.id === id); return [`Якщо нагріти ${l.inputs.map(x => M[x].name).join(' з ')}, вийде ${M[l.out].name}.`, 'Не може бути! Треба спробувати.']; }
-    if (k.startsWith('i:')) return [`Я думаю, як ${V.IDEAS[id].verb}. Може, ${V.IDEAS[id].name}?`, 'Цікава думка…'];
-    const m = M[id];
-    return [`Знаєш ${m.name}? ${m.desc ? m.desc.split('.')[0] : V.propLine(m)}.`, 'Запам\'ятаю.'];
+    const k = items[0], id = k.slice(2);
+    if (k.startsWith('d:')) { const d = this.devices[id]; return [msg('dlg.design', { idea: id, ms: d ? d.parts : [] }), msg('dlg.designA')]; }
+    if (k.startsWith('l:')) { const l = V.LAWS.find(x => x.id === id); return [msg('dlg.law', { ms: l.inputs, m: l.out, cold: l.minT === 0 }), msg('dlg.lawA')]; }
+    if (k.startsWith('i:')) return [msg('dlg.idea', { idea: id }), msg('dlg.ideaA')];
+    return [msg('dlg.mat', { m: id, infoMat: id }), msg('dlg.matA')];
   };
 
   P.doBuild = function (n, t) {
@@ -1674,16 +2186,16 @@ code { font: 12px var(--mono); background: var(--soft); padding: 1px 5px; border
       if (!d) { this.endTask(n); return; }
       for (const id of d.parts) if (this.stock(id) < 2) { n.goalMats = d.parts.filter(x => V.BASE_RESOURCES.includes(x)); this.endTask(n); return; }
       for (const id of d.parts) this.take(id, 2);
-      t.phase = 1; t.w = 0; n.thought = 'Будую новий дім.';
+      t.phase = 1; t.w = 0; think(n, 'th.buildHouse');
     }
     if (t.phase === 1) {
       const s = { x: this.world.camp.x - 2, y: this.world.camp.y + 1.5 };
-      if (this.moveTo(n, s.x, s.y)) { t.w++; if (t.w > 120) { this.houses++; this.reward(n, R.build, 'збудував для всіх'); this.log(`${n.name} добудовує ще один дім. Тепер їх ${this.houses}.`, 'life', n); this.endTask(n); } }
+      if (this.moveTo(n, s.x, s.y)) { t.w++; if (t.w > 120) { this.houses++; this.reward(n, R.build, 'built'); this.log(msg('log.house', { n: n.name, k: this.houses }), 'life', n); this.endTask(n); } }
     }
   };
 
   P.die = function (n) {
-    this.log(`${n.name} не ${g(n, 'пережив', 'пережила')} голоду. Поселення сумує.`, 'death', n);
+    this.log(msg('log.death', { n: n.name }), 'death', n);
     this.dead.push(n); this.npcs = this.npcs.filter(x => x !== n);
   };
 
@@ -1697,9 +2209,9 @@ code { font: 12px var(--mono); background: var(--soft); padding: 1px 5px; border
       let spread = 0;
       for (const n of this.npcs) {
         const miss = [...pool].filter(k => !n.know.has(k));
-        for (let i = 0; i < 3 && miss.length; i++) { const k = miss.splice(Math.floor(rnd() * miss.length), 1)[0]; if (this.learn(n, k, 'прочитав таблички')) spread++; }
+        for (let i = 0; i < 3 && miss.length; i++) { const k = miss.splice(Math.floor(rnd() * miss.length), 1)[0]; if (this.learn(n, k, 'readTablets')) spread++; }
       }
-      if (spread) for (const w of writers) this.reward(w, spread * 0.3, 'таблички вчать інших');
+      if (spread) for (const w of writers) this.reward(w, spread * 0.3, 'tablets');
     }
     const adults = this.npcs.filter(n => isAdult(this, n));
     if (this.npcs.length < 22 && this.foodStock() >= this.npcs.length * 2 && rnd() < 0.45 && adults.length >= 2) {
@@ -1709,7 +2221,7 @@ code { font: 12px var(--mono); background: var(--soft); padding: 1px 5px; border
         const c = this.addNPC(pair);
         c.x = this.world.camp.x; c.y = this.world.camp.y;
         this.stats.births++;
-        this.log(`У ${pair[0].name} і ${pair[1].name} народжується дитина — ${c.name}.`, 'birth', c);
+        this.log(msg('log.birth', { n: pair[0].name, n2: pair[1].name, n3: c.name }), 'birth', c);
       }
     }
     this.updateEra();
@@ -1718,14 +2230,14 @@ code { font: 12px var(--mono); background: var(--soft); padding: 1px 5px; border
   P.updateEra = function () {
     const has = id => this.worldKnown.has(id);
     const anyAlloy = pred => Object.values(M).some(m => m.alloy && this.worldKnown.has(m.id) && pred(m));
-    let era = 'Кам\'яна доба';
-    if (has('ceramic')) era = 'Доба кераміки';
-    if (has('copper')) era = 'Мідна доба';
-    if (anyAlloy(m => m.comp.some(c => c[0] === 'tin') && m.comp.some(c => c[0] === 'copper'))) era = 'Бронзова доба';
-    if (has('iron')) era = 'Залізна доба';
-    if (has('glass') && has('iron')) era = 'Доба скла й заліза';
-    if (this.structures.cell) era = 'Електрична доба';
-    if (era !== this.era) { this.era = era; this.log(`Настає нова епоха: ${era}.`, 'era'); }
+    let era = 'stone';
+    if (has('ceramic')) era = 'ceramic';
+    if (has('copper')) era = 'copper';
+    if (anyAlloy(m => m.comp.some(c => c[0] === 'tin') && m.comp.some(c => c[0] === 'copper'))) era = 'bronze';
+    if (has('iron')) era = 'iron';
+    if (has('glass') && has('iron')) era = 'glass';
+    if (this.structures.cell) era = 'electric';
+    if (era !== this.era) { this.era = era; this.log(msg('log.era', { era }), 'era'); }
   };
 
   P.step = function () {
@@ -1758,23 +2270,24 @@ code { font: 12px var(--mono); background: var(--soft); padding: 1px 5px; border
   let cfg = Object.assign({}, DEFAULTS);
   try { const s = JSON.parse(localStorage.getItem('valley.llm') || 'null'); if (s) cfg = Object.assign(cfg, s); } catch (e) { /* без сховища */ }
 
-  const state = { busy: false, last: 0, backoff: 0, ok: 0, fail: 0, lastError: '', latency: 0, status: 'вимкнено', log: [] };
+  const state = { busy: false, last: 0, backoff: 0, ok: 0, fail: 0, lastError: '', latency: 0, status: ['st.off', {}], log: [] };
 
   const PRESETS = {
-    openrouter: { provider: 'openai', url: 'https://openrouter.ai/api/v1', model: 'openrouter/free', cooldown: 6, note: 'Вставте ключ з <a href="https://openrouter.ai/keys" target="_blank" rel="noopener">openrouter.ai/keys</a>. Модель <code>openrouter/free</code> сама обирає доступну безкоштовну модель. Гра має бути відкрита зі звичайного сайту, а не з Claude.' },
-    ollama: { provider: 'ollama', url: 'http://localhost:11434', model: 'qwen2.5:3b', cooldown: 1.5, note: 'Запустіть <code>OLLAMA_ORIGINS="*" ollama serve</code> і завантажте модель: <code>ollama pull qwen2.5:3b</code>.' },
-    lmstudio: { provider: 'openai', url: 'http://localhost:1234/v1', model: '', cooldown: 1.5, note: 'У LM Studio завантажте модель і ввімкніть локальний сервер (Developer → Start Server, з дозволом CORS). Потім натисніть «Перевірити з\'єднання» і виберіть модель зі списку.' },
+    cloudflare: { provider: 'openai', url: '/api/v1', model: '@cf/meta/llama-3.1-8b-instruct-fp8-fast', cooldown: 3 },
+    openrouter: { provider: 'openai', url: 'https://openrouter.ai/api/v1', model: 'openrouter/free', cooldown: 6 },
+    ollama: { provider: 'ollama', url: 'http://localhost:11434', model: 'qwen2.5:3b', cooldown: 1.5 },
+    lmstudio: { provider: 'openai', url: 'http://localhost:1234/v1', model: '', cooldown: 1.5 },
   };
 
   const LLM = V.LLM = {
     cfg, state,
     save() { try { localStorage.setItem('valley.llm', JSON.stringify(cfg)); } catch (e) { /* ок */ } },
-    set(k, v) { cfg[k] = v; LLM.save(); if (k === 'enabled') state.status = v ? 'увімкнено' : 'вимкнено'; },
+    set(k, v) { cfg[k] = v; LLM.save(); if (k === 'enabled') state.status = [v ? 'st.on' : 'st.off', {}]; },
     ready() { return cfg.enabled && !state.busy && performance.now() > state.backoff && (performance.now() - state.last) / 1000 > cfg.cooldown; },
     canPlan() { return cfg.plans && LLM.ready(); },
     canChat() { return cfg.chat && LLM.ready() && Math.random() < 0.35; },
   };
-  state.status = cfg.enabled ? 'увімкнено' : 'вимкнено';
+  state.status = [cfg.enabled ? 'st.on' : 'st.off', {}];
 
   LLM.PRESETS = PRESETS;
   LLM.applyPreset = function (id) {
@@ -1788,10 +2301,12 @@ code { font: 12px var(--mono); background: var(--soft); padding: 1px 5px; border
     LLM.save();
     return p;
   };
+  // відносна адреса (/api/v1) — сервер, з якого відкрито гру (Cloudflare Worker)
+  const absUrl = u => /^https?:/i.test(u) ? u : (typeof location !== 'undefined' ? location.origin : '') + u;
   const isOpenRouter = () => /openrouter\.ai/.test(cfg.url);
 
   function endpoint() {
-    const base = cfg.url.replace(/\/+$/, '');
+    const base = absUrl(cfg.url).replace(/\/+$/, '');
     return cfg.provider === 'ollama' ? base + '/api/chat' : (base.endsWith('/v1') ? base : base + '/v1') + '/chat/completions';
   }
 
@@ -1808,18 +2323,18 @@ code { font: 12px var(--mono); background: var(--soft); padding: 1px 5px; border
         ? { model: cfg.model, messages, stream: false, format: 'json', options: { temperature: 0.8, num_predict: maxTokens } }
         : { model: cfg.model, messages, temperature: 0.8, max_tokens: maxTokens };
       const res = await fetch(endpoint(), { method: 'POST', headers, body: JSON.stringify(body), signal: ctrl.signal });
-      if (res.status === 429) { state.backoff = performance.now() + 45000; throw new Error('ліміт запитів, пауза 45 с'); }
-      if (res.status === 401) throw new Error('невірний або відсутній ключ API');
+      if (res.status === 429) { state.backoff = performance.now() + 45000; throw new Error('429 (limit, 45 s)'); }
+      if (res.status === 401) throw new Error('401 (API key)');
       if (!res.ok) throw new Error('HTTP ' + res.status + ' ' + (await res.text()).slice(0, 120));
       const data = await res.json();
       const text = cfg.provider === 'ollama' ? data.message && data.message.content : data.choices && data.choices[0].message.content;
-      state.ok++; state.latency = Math.round(performance.now() - t0); state.status = `працює (${state.latency} мс)`;
+      state.ok++; state.latency = Math.round(performance.now() - t0); state.status = ['st.works', { ms: state.latency }];
       return parseJSON(text || '');
     } catch (e) {
       state.fail++;
       state.lastError = e.name === 'AbortError' ? 'тайм-аут' : (e.message || String(e));
-      state.status = 'помилка: ' + state.lastError;
-      if (/Failed to fetch|NetworkError|Load failed/i.test(state.lastError)) state.status = 'немає з\'єднання (див. «Як під\'єднати»)';
+      state.status = ['st.err', { e: state.lastError }];
+      if (/Failed to fetch|NetworkError|Load failed/i.test(state.lastError)) state.status = ['st.noconn', {}];
       return null;
     } finally { clearTimeout(timer); state.busy = false; state.last = performance.now(); }
   }
@@ -1831,35 +2346,37 @@ code { font: 12px var(--mono); background: var(--soft); padding: 1px 5px; border
   }
 
   LLM.test = async function () {
-    state.status = 'перевіряю…';
-    const base = cfg.url.replace(/\/+$/, '');
+    state.status = ['st.checking', {}];
+    const base = absUrl(cfg.url).replace(/\/+$/, '');
     try {
       const headers = cfg.apiKey ? { Authorization: 'Bearer ' + cfg.apiKey } : {};
       if (isOpenRouter()) {
-        if (!cfg.apiKey) { state.status = 'вставте ключ API'; return { ok: false, error: 'немає ключа' }; }
+        if (!cfg.apiKey) { state.status = ['st.needKey', {}]; return { ok: false, error: 'no key' }; }
         const k = await fetch(base + '/key', { headers });
-        if (k.status === 401) { state.status = 'ключ не прийнято'; return { ok: false, error: '401' }; }
+        if (k.status === 401) { state.status = ['st.badKey', {}]; return { ok: false, error: '401' }; }
         if (!k.ok) throw new Error('HTTP ' + k.status);
-        state.status = 'з\'єднано з OpenRouter';
+        state.status = ['st.okOR', {}];
         return { ok: true, models: [cfg.model], skipCheck: true };
       }
       const url = cfg.provider === 'ollama' ? base + '/api/tags' : (base.endsWith('/v1') ? base : base + '/v1') + '/models';
       const r = await fetch(url, { headers });
       if (!r.ok) throw new Error('HTTP ' + r.status);
+      if (!/json/.test(r.headers.get('content-type') || '')) throw new Error('not JSON');
       const d = await r.json();
       const models = cfg.provider === 'ollama' ? (d.models || []).map(m => m.name) : (d.data || []).map(m => m.id);
-      state.status = models.length ? 'з\'єднано' : 'з\'єднано, але моделей немає';
+      state.status = [models.length ? 'st.ok' : 'st.okNoModels', {}];
       return { ok: true, models };
     } catch (e) {
-      state.status = 'немає з\'єднання';
+      state.status = ['st.noconn', {}];
       return { ok: false, error: e.message || String(e) };
     }
   };
 
   const matLine = id => {
-    const m = M[id];
-    return `${id} = ${m.name}${m.desc ? ' [' + m.desc.split('.')[0] + ']' : ''}: ${V.propLine(m)}`;
+    const d = V.matDesc(M[id]);
+    return `${id} = ${V.mn(id)}${d ? ' [' + d.split('.')[0] + ']' : ''}: ${V.propLine(M[id])}`;
   };
+  const langLine = () => V.lang === 'de' ? 'Schreibe "thought" und "name" auf Deutsch.' : 'Пиши "thought" і "name" українською.';
 
   /* ---------- Планування експерименту ---------- */
   LLM.planExperiment = async function (sim, n, o) {
@@ -1873,14 +2390,14 @@ code { font: 12px var(--mono); background: var(--soft); padding: 1px 5px; border
     if (!mats.size) return null;
 
     const R = V.REWARD;
-    const devs = Object.values(sim.devices).map(d => `${V.IDEAS[d.idea].name} (якість ${d.quality})`).join(', ') || 'нічого';
+    const devs = Object.values(sim.devices).map(d => `${V.ideaName(d.idea)} (якість ${d.quality})`).join(', ') || 'нічого';
     const fails = [...n.failures].slice(-6).join('; ');
     const hints = [n.hints.hotter && 'жару бракує для деяких реакцій', n.hints.air && 'деяким речам потрібен жар без повітря', n.hints.wall && 'стіни печі тріщать від жару'].filter(Boolean).join('; ') || 'немає';
 
-    const sys = `Ти — ${n.name}, поселенець(-ка) у первісній долині. Ти допитлив(-а) і хочеш винаходити.
+    const sys = `Ти — ${V.nn(n.name)}, поселенець(-ка) у первісній долині. Ти допитлив(-а) і хочеш винаходити.
 Світ підкоряється справжній фізиці й хімії: метали відновлюються з руди вугіллям при достатньому жарі, глина спікається, сплави змінюють твердість і крихкість, пристрій працює лише якщо властивості матеріалів підходять.
 Твоє натхнення зараз: ${Math.round(n.insp)}. Ти отримуєш натхнення: новий матеріал +${R.material}, матеріал кращий за всі відомі +${R.useful}, новий винахід, що працює, до +${R.invent}, покращення +${R.improve}, «майже вийшло» +${R.partial}, невдача +${R.fail}. Найцінніше — те, що справді працює і чого ще ніхто не робив.
-Відповідай ЛИШЕ JSON-об'єктом.`;
+Відповідай ЛИШЕ JSON-об'єктом. ${langLine()}`;
 
     const user = `Температура печі з найкращим паливом: ${o.temp ? Math.round(o.temp.t) + '°C' + (o.temp.enclosed ? ', закрита піч' : ', відкрите вогнище') : 'вогню немає'}.
 Уже є в поселенні: ${devs}.
@@ -1893,12 +2410,12 @@ ${[...mats].map(matLine).join('\n')}
 Можливі експерименти:
 A) нагріти: ${heat.map(h => '[' + h.join(',') + ']').join(' ') || 'немає'}
 B) змайструвати пристрій (idea і по одному матеріалу на кожне гніздо):
-${build.map(b => `  ${b.idea} — ${V.IDEAS[b.idea].name} (щоб ${V.IDEAS[b.idea].verb}); гнізда: ${V.IDEAS[b.idea].slots.map((s, i) => V.SLOT[s].name + ' з [' + b.slots[i].join(',') + ']').join('; ')}`).join('\n') || '  немає'}
+${build.map(b => `  ${b.idea} — ${V.ideaName(b.idea)} (${V.ideaVerb(b.idea)}); гнізда: ${V.IDEAS[b.idea].slots.map((s, i) => V.slotName(s) + ' з [' + b.slots[i].join(',') + ']').join('; ')}`).join('\n') || '  немає'}
 C) сплав (base + add, f = частка add від 0.01 до 0.5; для вуглецю 0.001–0.045): ${o.alloy.map(a => a.base + '+' + a.add).join(', ') || 'немає'}${o.temp ? '' : ''}
 D) композит (matrix + filler, f = частка наповнювача 0.05–0.6): ${o.composite.map(c => c.matrix + '+' + c.filler).join(', ') || 'немає'}
 
 Обери ОДИН експеримент. Формат:
-{"thought":"коротка думка українською","type":"heat|build|alloy|composite","inputs":["id"],"idea":"id","parts":["id"],"base":"id","add":"id","matrix":"id","filler":"id","f":0.1,"name":"назва для нового матеріалу (необов'язково)"}`;
+{"thought":"коротка думка","type":"heat|build|alloy|composite","inputs":["id"],"idea":"id","parts":["id"],"base":"id","add":"id","matrix":"id","filler":"id","f":0.1,"name":"назва для нового матеріалу (необов'язково)"}`;
 
     const j = await call([{ role: 'system', content: sys }, { role: 'user', content: user }], 260);
     if (!j) return null;
@@ -1936,8 +2453,8 @@ D) композит (matrix + filler, f = частка наповнювача 0.
   /* ---------- Розмова ---------- */
   LLM.chat = async function (sim, a, b, items) {
     const topic = items.length ? items.map(V.knowName).join('; ') : 'щоденне життя';
-    const sys = `Ти пишеш репліки двох поселенців первісної долини. Коротко (до 15 слів кожна), живо, українською. Відповідай лише JSON {"a":"...","b":"..."}.`;
-    const user = `${a.name} (${a.thought}) розповідає ${b.name} про: ${topic}. ${b.name} зараз: ${b.thought}. Епоха: ${sim.era}.`;
+    const sys = `Ти пишеш репліки двох поселенців первісної долини. Коротко (до 15 слів кожна), живо, ${V.lang === 'de' ? 'НІМЕЦЬКОЮ мовою (auf Deutsch)' : 'українською'}. Відповідай лише JSON {"a":"...","b":"..."}.`;
+    const user = `${V.nn(a.name)} (${V.R(a.thought)}) розповідає ${V.nn(b.name)} про: ${topic}. ${V.nn(b.name)} зараз: ${V.R(b.thought)}. Епоха: ${V.eraName(sim.era)}.`;
     const j = await call([{ role: 'system', content: sys }, { role: 'user', content: user }], 120);
     if (!j || typeof j.a !== 'string') return null;
     return [j.a.slice(0, 140), typeof j.b === 'string' ? j.b.slice(0, 140) : ''];
@@ -2011,7 +2528,7 @@ D) композит (matrix + filler, f = частка наповнювача 0.
     }
     // гори — штрихування
     g.strokeStyle = 'rgba(40,36,32,0.25)'; g.lineWidth = Math.max(1, ts * 0.07);
-    for (const t of w.tiles) if (t.t === V.T.MOUNT) {
+    for (const t of w.tiles) if (t.t === V.TER.MOUNT) {
       const x = t.x * ts, y = t.y * ts;
       g.beginPath(); g.moveTo(x + ts * 0.2, y + ts * 0.8); g.lineTo(x + ts * 0.5, y + ts * 0.25); g.lineTo(x + ts * 0.8, y + ts * 0.8); g.stroke();
     }
@@ -2086,9 +2603,9 @@ D) композит (matrix + filler, f = частка наповнювача 0.
       if (this.sel === n.id) {
         g.strokeStyle = '#ffd36b'; g.lineWidth = 2.5 * d; g.beginPath(); g.arc(x, y, r + 4 * d, 0, 6.29); g.stroke();
         g.font = `600 ${Math.round(11 * d)}px Rubik, system-ui, sans-serif`;
-        const tw = g.measureText(n.name).width;
+        const label = V.nn(n.name), tw = g.measureText(label).width;
         g.fillStyle = 'rgba(20,26,32,0.85)'; g.fillRect(x - tw / 2 - 5 * d, y - r - 22 * d, tw + 10 * d, 16 * d);
-        g.fillStyle = '#fff'; g.fillText(n.name, x - tw / 2, y - r - 10 * d);
+        g.fillStyle = '#fff'; g.fillText(label, x - tw / 2, y - r - 10 * d);
       }
     }
 
@@ -2165,6 +2682,7 @@ D) композит (matrix + filler, f = частка наповнювача 0.
   'use strict';
   const $ = id => document.getElementById(id);
   const M = V.MATERIALS;
+  const u = V.u;
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
   let seed = Math.floor(Math.random() * 1e6);
@@ -2172,20 +2690,38 @@ D) композит (matrix + filler, f = частка наповнювача 0.
   const canvas = $('world');
   const R = new V.Renderer(canvas, sim);
   let speed = 1, paused = false, acc = 0, last = performance.now();
-  let tab = 'chron', chronFilter = 'all', selMat = null;
+  let tab = 'chron', chronFilter = 'all', selMat = null, follow = false;
+  const L = V.LLM;
+  const PRESET_NOTE = { cloudflare: 'cf', openrouter: 'or', ollama: 'ol', lmstudio: 'lm' };
 
-  /* ---------- керування ---------- */
+  /* ---------- мова ---------- */
+  function applyStatic() {
+    document.documentElement.lang = V.lang;
+    document.title = u('title');
+    document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = u(el.dataset.i18n); });
+    document.querySelectorAll('[data-i18n-html]').forEach(el => { el.innerHTML = u(el.dataset.i18nHtml); });
+    document.querySelectorAll('[data-i18n-aria]').forEach(el => el.setAttribute('aria-label', u(el.dataset.i18nAria)));
+    document.querySelectorAll('.lang').forEach(b => b.classList.toggle('on', b.dataset.lang === V.lang));
+    $('pause').setAttribute('aria-label', paused ? u('resume') : u('pause'));
+    syncLLMForm();
+    const note = $('presetNote');
+    if (!note.hidden && L.cfg.preset) note.innerHTML = u('note.' + PRESET_NOTE[L.cfg.preset]);
+  }
+  document.querySelectorAll('.lang').forEach(b => b.addEventListener('click', () => {
+    V.setLang(b.dataset.lang); applyStatic(); lastChron = ''; renderStrip(true); renderPanel(true); header(true);
+  }));
+
+  /* ---------- керування часом ---------- */
   function setSpeed(s) {
     speed = s; paused = false;
     document.querySelectorAll('.spd').forEach(b => b.classList.toggle('on', +b.dataset.s === s));
-    $('pause').classList.remove('on'); $('pause').textContent = '❚❚';
+    $('pause').classList.remove('on'); $('pause').textContent = '❚❚'; $('pause').setAttribute('aria-label', u('pause'));
   }
   document.querySelectorAll('.spd').forEach(b => b.addEventListener('click', () => setSpeed(+b.dataset.s)));
   $('pause').addEventListener('click', () => {
     paused = !paused; $('pause').classList.toggle('on', paused); $('pause').textContent = paused ? '▶' : '❚❚';
-    $('pause').setAttribute('aria-label', paused ? 'Продовжити' : 'Пауза');
+    $('pause').setAttribute('aria-label', paused ? u('resume') : u('pause'));
   });
-  setSpeed(1);
 
   document.querySelectorAll('.tab').forEach(b => b.addEventListener('click', () => {
     tab = b.dataset.tab;
@@ -2199,64 +2735,93 @@ D) композит (matrix + filler, f = частка наповнювача 0.
     renderPanel(true);
   }));
 
-  function select(id) {
+  /* ---------- вибір мешканця ---------- */
+  function findNPC(id) { return sim.npcs.find(x => x.id === id) || sim.dead.find(x => x.id === id); }
+  function select(id, openTab = true) {
     R.sel = id;
-    if (tab !== 'people') document.querySelector('.tab[data-tab="people"]').click();
-    renderPanel(true);
+    if (openTab && tab !== 'people') document.querySelector('.tab[data-tab="people"]').click();
+    const n = sim.npcs.find(x => x.id === id);
+    if (n && R.zoom > 1) centerOn(n, true);
+    renderStrip(true); renderPanel(true);
+  }
+  function step(dir) {
+    const list = sim.npcs.slice().sort((a, b) => a.id - b.id);
+    if (!list.length) return;
+    let i = list.findIndex(n => n.id === R.sel);
+    i = i < 0 ? 0 : (i + dir + list.length) % list.length;
+    select(list[i].id);
+    const chip = $('strip').querySelector(`[data-id="${list[i].id}"]`);
+    if (chip) chip.scrollIntoView({ block: 'nearest', inline: 'center' });
   }
   canvas.addEventListener('click', e => {
     const r = canvas.getBoundingClientRect();
     const n = R.pick(e.clientX - r.left, e.clientY - r.top);
     if (n) select(n.id);
   });
+  $('strip').addEventListener('click', e => { const b = e.target.closest('[data-id]'); if (b) select(+b.dataset.id, false); });
   $('people').addEventListener('click', e => { const li = e.target.closest('li[data-id]'); if (li) select(+li.dataset.id); });
   $('chron').addEventListener('click', e => { const w = e.target.closest('[data-npc]'); if (w) select(+w.dataset.npc); });
-  $('person').addEventListener('click', e => { if (e.target.closest('.close')) { R.sel = null; renderPanel(true); } });
+  $('person').addEventListener('click', e => {
+    if (e.target.closest('.close')) { R.sel = null; follow = false; renderStrip(true); renderPanel(true); }
+    else if (e.target.closest('.prev')) step(-1);
+    else if (e.target.closest('.next')) step(1);
+    else if (e.target.closest('.follow')) {
+      follow = !follow;
+      if (follow && R.zoom === 1) { R.zoom = 2; R.resize(); }
+      const n = sim.npcs.find(x => x.id === R.sel); if (n && follow) centerOn(n, true);
+      renderPanel(true);
+    }
+  });
   $('disc').addEventListener('click', e => { const m = e.target.closest('[data-mat]'); if (m) { selMat = selMat === m.dataset.mat ? null : m.dataset.mat; renderPanel(true); } });
 
-  $('newWorld').addEventListener('click', () => {
-    seed = Math.floor(Math.random() * 1e6);
-    // прибрати згенеровані матеріали попереднього світу
-    for (const id of Object.keys(M)) if (/^g\d+$/.test(id)) delete M[id];
-    sim = new V.Sim(seed); R.setSim(sim); R.sel = null; selMat = null;
-    renderPanel(true);
-  });
-
+  /* ---------- масштаб і камера ---------- */
+  function centerOn(n, jump) {
+    const wrap = $('canvasWrap');
+    const tx = n.x * R.ts - wrap.clientWidth / 2, ty = n.y * R.ts - wrap.clientHeight / 2;
+    if (jump) { wrap.scrollLeft = tx; wrap.scrollTop = ty; return; }
+    const dx = tx - wrap.scrollLeft, dy = ty - wrap.scrollTop;
+    if (Math.abs(dx) > 1 || Math.abs(dy) > 1) { wrap.scrollLeft += dx * 0.12; wrap.scrollTop += dy * 0.12; }
+  }
   function setZoom(z) {
     const wrap = $('canvasWrap');
-    const cx = (wrap.scrollLeft + wrap.clientWidth / 2) / (R.ts || 1), cy = (wrap.scrollTop + wrap.clientHeight / 2) / (R.ts || 1);
+    const cx = (wrap.scrollLeft + wrap.clientWidth / 2) / R.ts, cy = (wrap.scrollTop + wrap.clientHeight / 2) / R.ts;
     R.zoom = Math.max(1, Math.min(4, z)); R.resize();
-    wrap.scrollLeft = R.zoom === 1 ? 0 : cx * R.ts - wrap.clientWidth / 2;
-    wrap.scrollTop = R.zoom === 1 ? 0 : cy * R.ts - wrap.clientHeight / 2;
+    if (R.zoom === 1) { follow = false; wrap.scrollLeft = 0; wrap.scrollTop = 0; return; }
+    wrap.scrollLeft = cx * R.ts - wrap.clientWidth / 2; wrap.scrollTop = cy * R.ts - wrap.clientHeight / 2;
   }
   $('zoomIn').addEventListener('click', () => {
     const wrap = $('canvasWrap');
-    if (R.zoom === 1) { R.zoom = 2; R.resize(); wrap.scrollLeft = sim.world.camp.x * R.ts - wrap.clientWidth / 2; wrap.scrollTop = sim.world.camp.y * R.ts - wrap.clientHeight / 2; }
+    const n = sim.npcs.find(x => x.id === R.sel);
+    if (R.zoom === 1) { R.zoom = 2; R.resize(); const c = n || sim.world.camp; wrap.scrollLeft = c.x * R.ts - wrap.clientWidth / 2; wrap.scrollTop = c.y * R.ts - wrap.clientHeight / 2; }
     else setZoom(R.zoom + 1);
   });
-  $('zoomOut').addEventListener('click', () => setZoom(R.zoom - 1));
+  $('zoomOut').addEventListener('click', () => { setZoom(R.zoom - 1); renderPanel(true); });
+
+  $('newWorld').addEventListener('click', () => {
+    seed = Math.floor(Math.random() * 1e6);
+    for (const id of Object.keys(M)) if (/^g\d+$/.test(id)) delete M[id];   // матеріали попереднього світу
+    sim = new V.Sim(seed); R.setSim(sim); R.sel = null; selMat = null; follow = false;
+    lastChron = ''; renderStrip(true); renderPanel(true);
+  });
 
   let rsz; window.addEventListener('resize', () => { clearTimeout(rsz); rsz = setTimeout(() => R.resize(), 120); });
 
   /* ---------- LLM-налаштування ---------- */
-  const L = V.LLM;
   function syncLLMForm() {
     $('llmOn').checked = L.cfg.enabled; $('llmProv').value = L.cfg.provider; $('llmUrl').value = L.cfg.url;
     $('llmModel').value = L.cfg.model; $('llmKey').value = L.cfg.apiKey;
+    $('llmPlans').checked = L.cfg.plans; $('llmChat').checked = L.cfg.chat;
     document.querySelectorAll('.preset').forEach(b => b.classList.toggle('on', b.dataset.preset === L.cfg.preset));
-    $('llmKey').placeholder = L.cfg.provider === 'ollama' ? 'не потрібен для Ollama' : L.cfg.preset === 'openrouter' ? 'sk-or-…' : 'якщо сервер його вимагає';
+    $('llmKey').placeholder = L.cfg.provider === 'ollama' ? u('key.ollama') : L.cfg.preset === 'openrouter' ? 'sk-or-…' : L.cfg.preset === 'cloudflare' ? u('key.cf') : u('key.opt');
   }
   document.querySelectorAll('.preset').forEach(b => b.addEventListener('click', () => {
-    const p = L.applyPreset(b.dataset.preset);
+    L.applyPreset(b.dataset.preset);
     L.set('enabled', true);
     syncLLMForm();
-    $('presetNote').innerHTML = p.note; $('presetNote').hidden = false;
+    $('presetNote').innerHTML = u('note.' + PRESET_NOTE[b.dataset.preset]); $('presetNote').hidden = false;
     if (b.dataset.preset === 'openrouter' && !L.cfg.apiKey) $('llmKey').focus();
     renderPanel(true);
   }));
-  $('llmOn').checked = L.cfg.enabled; $('llmProv').value = L.cfg.provider; $('llmUrl').value = L.cfg.url;
-  $('llmModel').value = L.cfg.model; $('llmKey').value = L.cfg.apiKey; $('llmPlans').checked = L.cfg.plans; $('llmChat').checked = L.cfg.chat;
-  syncLLMForm();
   $('llmOn').addEventListener('change', e => L.set('enabled', e.target.checked));
   $('llmProv').addEventListener('change', e => {
     L.set('provider', e.target.value); L.set('preset', '');
@@ -2272,7 +2837,7 @@ D) композит (matrix + filler, f = частка наповнювача 0.
   $('llmTest').addEventListener('click', async () => {
     const r = await L.test();
     if (r.ok) $('llmModels').innerHTML = r.models.map(m => `<option value="${esc(m)}">`).join('');
-    if (r.ok && !r.skipCheck && r.models.length && !r.models.includes(L.cfg.model)) L.state.status += ` · моделі «${L.cfg.model}» немає, доступні: ${r.models.slice(0, 4).join(', ')}`;
+    if (r.ok && !r.skipCheck && r.models.length && !r.models.includes(L.cfg.model)) L.state.status = ['st.missing', { model: L.cfg.model, list: r.models.slice(0, 4).join(', ') }];
     renderPanel(true);
   });
 
@@ -2285,35 +2850,54 @@ D) композит (matrix + filler, f = частка наповнювача 0.
       const t0 = performance.now();
       while (acc >= 1 && steps < 2000) { sim.step(); acc -= 1; steps++; if (steps % 50 === 0 && performance.now() - t0 > 28) { acc = 0; break; } }
     }
+    if (follow && R.zoom > 1) { const n = sim.npcs.find(x => x.id === R.sel); if (n) centerOn(n, false); else follow = false; }
     R.draw(now);
-    header();
+    header(false);
     requestAnimationFrame(frame);
   }
 
   let lastHeader = 0;
-  function header() {
+  function header(force) {
     const now = performance.now();
-    if (now - lastHeader < 200) return;
+    if (!force && now - lastHeader < 200) return;
     lastHeader = now;
-    $('era').textContent = sim.era;
-    $('day').textContent = 'День ' + sim.day() + (sim.isNight() ? ' · ніч' : '');
+    $('era').textContent = V.eraName(sim.era);
+    $('day').textContent = u('day') + ' ' + sim.day() + (sim.isNight() ? ' · ' + u('night') : '');
     $('sun').style.setProperty('--p', (sim.phase() * 100).toFixed(1) + '%');
     const insp = sim.npcs.reduce((s, n) => s + n.insp, 0);
     const animals = sim.animals.filter(a => a.alive);
     const cnt = t => animals.filter(a => a.type === t).length;
     $('stats').innerHTML =
-      `<span><b>${sim.npcs.length}</b>мешканців</span>` +
-      `<span><b>${sim.foodStock()}</b>їжі в запасі</span>` +
-      `<span><b>${sim.worldKnown.size}</b>відомих матеріалів</span>` +
-      `<span><b>${Object.keys(sim.devices).length}</b>винаходів</span>` +
-      `<span><b>${sim.attempts}</b>дослідів</span>` +
-      `<span><b>${Math.round(insp)}</b>натхнення</span>` +
-      `<span><b>${cnt('rabbit')}</b>кролів · <b>${cnt('deer')}</b>оленів · <b>${cnt('wolf')}</b>вовків</span>`;
+      `<span><b>${sim.npcs.length}</b>${u('stat.pop')}</span>` +
+      `<span><b>${sim.foodStock()}</b>${u('stat.food')}</span>` +
+      `<span><b>${sim.worldKnown.size}</b>${u('stat.mats')}</span>` +
+      `<span><b>${Object.keys(sim.devices).length}</b>${u('stat.inv')}</span>` +
+      `<span><b>${sim.attempts}</b>${u('stat.exp')}</span>` +
+      `<span><b>${Math.round(insp)}</b>${u('stat.insp')}</span>` +
+      `<span><b>${cnt('rabbit')}</b>${u('stat.rab')} · <b>${cnt('deer')}</b>${u('stat.deer')} · <b>${cnt('wolf')}</b>${u('stat.wolf')}</span>`;
+    renderStrip(false);
     renderPanel(false);
   }
 
+  /* ---------- стрічка мешканців ---------- */
+  let lastStrip = 0;
+  function renderStrip(force) {
+    const now = performance.now();
+    if (!force && now - lastStrip < 700) return;
+    lastStrip = now;
+    const list = sim.npcs.slice().sort((a, b) => a.id - b.id);
+    $('strip').innerHTML = list.map(n => {
+      const act = n.task ? V.act(n.task.type) : '';
+      const child = n.ageTicks < sim.DAY * 2;
+      const sel = n.id === R.sel;
+      return `<button class="who-chip${sel ? ' on' : ''}" data-id="${n.id}" role="option" aria-selected="${sel}">` +
+        `<span class="dot${child ? ' small' : ''}" style="background:${n.color}"></span>` +
+        `<span class="wn">${esc(V.nn(n.name))}</span><span class="wa">${esc(act)}</span></button>`;
+    }).join('');
+  }
+
   /* ---------- панелі ---------- */
-  let lastPanel = 0, lastChronLen = -1;
+  let lastPanel = 0, lastChron = '';
   function renderPanel(force) {
     const now = performance.now();
     if (!force && now - lastPanel < 500) return;
@@ -2324,103 +2908,132 @@ D) композит (matrix + filler, f = частка наповнювача 0.
     else renderBrain();
   }
 
-  function npcName(id) { const n = sim.npcs.find(x => x.id === id) || sim.dead.find(x => x.id === id); return n ? n.name : ''; }
+  function npcName(id) { const n = findNPC(id); return n ? V.nn(n.name) : ''; }
 
   function renderChron(force) {
-    const key = sim.chronicle.length + ':' + (sim.chronicle.length ? sim.chronicle[sim.chronicle.length - 1].t : 0) + chronFilter;
-    if (!force && key === lastChronLen) return;
-    lastChronLen = key;
-    const want = c => chronFilter === 'all' ? true : chronFilter === 'discovery' ? (c.kind === 'discovery' || c.kind === 'improve' || c.kind === 'era') : chronFilter === 'life' ? ['life', 'birth', 'death', 'help', 'find'].includes(c.kind) : chronFilter === 'idea' ? (c.kind === 'idea' || c.kind === 'hint' || c.kind === 'try') : c.kind === chronFilter;
+    const lastE = sim.chronicle[sim.chronicle.length - 1];
+    const key = sim.chronicle.length + ':' + (lastE ? lastE.t : 0) + chronFilter + V.lang;
+    if (!force && key === lastChron) return;
+    lastChron = key;
+    const want = c => chronFilter === 'all' ? true
+      : chronFilter === 'discovery' ? ['discovery', 'improve', 'era'].includes(c.kind)
+        : chronFilter === 'life' ? ['life', 'birth', 'death', 'help', 'find'].includes(c.kind)
+          : chronFilter === 'idea' ? ['idea', 'hint', 'try'].includes(c.kind)
+            : c.kind === chronFilter;
     const items = sim.chronicle.filter(want).slice(-160).reverse();
     $('chron').innerHTML = items.map(c => {
-      let t = esc(c.text);
+      let t = esc(V.R(c.msg));
       const nm = c.npc ? npcName(c.npc) : '';
       if (nm) t = t.replace(esc(nm), `<span class="who" data-npc="${c.npc}">${esc(nm)}</span>`);
-      return `<li class="${c.kind}"><span class="d">Д${c.day}</span><span class="t">${t}</span></li>`;
-    }).join('') || '<li><span></span><span class="muted">Поки тихо.</span></li>';
+      return `<li class="${c.kind}"><span class="d">${u('dayShort')}${c.day}</span><span class="t">${t}</span></li>`;
+    }).join('') || `<li><span></span><span class="muted">${u('quiet')}</span></li>`;
   }
 
-  const meter = (label, v, cls = '') => `<span>${label}</span><span class="meter ${cls}"><i style="width:${Math.max(0, Math.min(100, v)).toFixed(0)}%"></i></span><span class="v">${Math.round(v)}</span>`;
+  const meter = (label, v, cls = '', shown) => `<span>${label}</span><span class="meter ${cls}"><i style="width:${Math.max(0, Math.min(100, v)).toFixed(0)}%"></i></span><span class="v">${shown !== undefined ? shown : Math.round(v)}</span>`;
 
   function renderPeople() {
-    const sel = sim.npcs.find(n => n.id === R.sel) || sim.dead.find(n => n.id === R.sel);
-    if (sel) {
-      const n = sel, alive = sim.npcs.includes(n);
-      const act = n.task ? V.ACT_NAMES[n.task.type] || n.task.type : '—';
+    const n = findNPC(R.sel);
+    if (n) {
+      const alive = sim.npcs.includes(n);
+      const act = n.task ? V.act(n.task.type) : '—';
       const valMax = Math.max(...Object.values(n.val), 1);
-      const vals = Object.entries(n.val).sort((a, b) => b[1] - a[1]).map(([k, v]) => meter(V.ACT_NAMES[k], v / valMax * 100, 'gold').replace(/<span class="v">[^<]*<\/span>/, `<span class="v">${v.toFixed(1)}</span>`)).join('');
-      const designs = [...n.know].filter(k => k.startsWith('d:')).map(k => `<span class="tag d">${esc(V.IDEAS[k.slice(2)].name)}</span>`).join('');
-      const ideas = [...n.know].filter(k => k.startsWith('i:') && !n.know.has('d:' + k.slice(2))).map(k => `<span class="tag i">${esc(V.IDEAS[k.slice(2)].name)}</span>`).join('');
+      const vals = Object.entries(n.val).sort((a, b) => b[1] - a[1]).map(([k, v]) => meter(V.act(k), v / valMax * 100, 'gold', v.toFixed(1))).join('');
+      const designs = [...n.know].filter(k => k.startsWith('d:')).map(k => `<span class="tag d">${esc(V.ideaName(k.slice(2)))}</span>`).join('');
+      const ideas = [...n.know].filter(k => k.startsWith('i:') && !n.know.has('d:' + k.slice(2))).map(k => `<span class="tag i">${esc(V.ideaName(k.slice(2)))}</span>`).join('');
       const mats = [...n.know].filter(k => k.startsWith('m:')).length;
       const laws = [...n.know].filter(k => k.startsWith('l:')).length;
       const friends = Object.entries(n.friends).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([id]) => npcName(+id)).filter(Boolean).join(', ');
-      const age = n.ageTicks < sim.DAY * 2 ? 'дитина' : 'дорослий';
-      const lr = n.lastReward && sim.tick - n.lastReward.t < sim.DAY ? `<div class="reward">+${n.lastReward.amt.toFixed(1)} натхнення — ${esc(n.lastReward.why)}</div>` : '';
+      const age = n.ageTicks < sim.DAY * 2 ? u('child') : u('adult');
+      const lr = n.lastReward && sim.tick - n.lastReward.t < sim.DAY ? `<div class="reward">+${n.lastReward.amt.toFixed(1)} — ${esc(V.T('rw.' + n.lastReward.why))}</div>` : '';
+      const invs = n.inventions.map(id => `<span class="tag d">${esc(V.ideaName(id))}</span>`).join('');
       $('person').innerHTML = `<div class="person">
-        <div class="head"><span class="dot" style="background:${n.color}"></span><span class="nm">${esc(n.name)}</span><span class="muted">${alive ? age + ' · ' + act : 'помер(ла)'}</span><button class="close" aria-label="Закрити">✕</button></div>
-        <div class="thought ${n.llmNote && n.thought === n.llmNote ? 'llm' : ''}">${esc(n.thought)}</div>
-        ${n.lastLine ? `<div class="muted" style="font-size:12px;margin-bottom:8px">Остання репліка: «${esc(n.lastLine)}»</div>` : ''}
-        <div class="meters">
-          ${meter('Ситість', 100 - n.hunger, n.hunger > 70 ? 'warn' : '')}
-          ${meter('Енергія', n.energy, n.energy < 20 ? 'warn' : '')}
-          ${meter('Спілкування', 100 - n.social)}
-          ${meter('Здоров\'я', n.health, n.health < 50 ? 'warn' : '')}
+        <div class="head">
+          <span class="dot" style="background:${n.color}"></span><span class="nm">${esc(V.nn(n.name))}</span>
+          <span class="muted">${alive ? age + ' · ' + esc(act) : u('deceased')}</span>
+          <span class="nav">
+            <button class="iconbtn prev" aria-label="${u('prev')}">‹</button>
+            <button class="iconbtn next" aria-label="${u('next')}">›</button>
+            <button class="iconbtn close" aria-label="${u('close')}">✕</button>
+          </span>
         </div>
-        <h3>Натхнення: ${Math.round(n.insp)}</h3>${lr}
-        <p class="muted" style="font-size:12px;margin:4px 0 6px">Чого навчився мозок: очікуване натхнення від кожного заняття.</p>
+        ${alive ? `<button class="follow${follow ? ' on' : ''}" aria-pressed="${follow}">◎ ${u('follow')}</button>` : ''}
+        <div class="thought ${n.thoughtLLM ? 'llm' : ''}">${esc(V.R(n.thought))}</div>
+        ${n.lastLine ? `<div class="muted" style="font-size:12px;margin-bottom:8px">${u('lastLine')}: ${u('q1')}${esc(V.R(n.lastLine))}${u('q2')}</div>` : ''}
+        <div class="meters">
+          ${meter(u('sat'), 100 - n.hunger, n.hunger > 70 ? 'warn' : '')}
+          ${meter(u('energy'), n.energy, n.energy < 20 ? 'warn' : '')}
+          ${meter(u('social'), 100 - n.social)}
+          ${meter(u('health'), n.health, n.health < 50 ? 'warn' : '')}
+        </div>
+        <h3>${u('insp')}: ${Math.round(n.insp)}</h3>${lr}
+        <p class="muted" style="font-size:12px;margin:4px 0 6px">${u('brainLearned')}</p>
         <div class="meters">${vals}</div>
-        <h3>Знання</h3>
-        <p style="margin:0 0 6px;font-size:13px">${mats} матеріалів · ${laws} законів природи · ремесло ${n.skill.craft.toFixed(1)} · навчання ${n.skill.teach.toFixed(1)}</p>
+        <h3>${u('knowledge')}</h3>
+        <p style="margin:0 0 6px;font-size:13px">${mats} ${u('matsN')} · ${laws} ${u('lawsN')} · ${u('craft')} ${n.skill.craft.toFixed(1)} · ${u('teachSk')} ${n.skill.teach.toFixed(1)}</p>
         <div class="tags">${designs}${ideas}</div>
-        ${n.inventions.length ? `<h3>Винайшов(ла)</h3><div class="tags">${n.inventions.map(x => `<span class="tag d">${esc(x)}</span>`).join('')}</div>` : ''}
-        ${friends ? `<h3>Друзі</h3><p style="margin:0;font-size:13px">${esc(friends)}</p>` : ''}
-        <h3>Історія</h3><ul class="hist">${n.history.slice(0, 8).map(h => `<li>${esc(h)}</li>`).join('') || '<li>Поки нічого особливого.</li>'}</ul>
+        ${invs ? `<h3>${u('invented')}</h3><div class="tags">${invs}</div>` : ''}
+        ${friends ? `<h3>${u('friends')}</h3><p style="margin:0;font-size:13px">${esc(friends)}</p>` : ''}
+        <h3>${u('history')}</h3><ul class="hist">${n.history.slice(0, 8).map(h => `<li>${u('day')} ${h.day}: ${esc(V.R(h.msg))}</li>`).join('') || `<li>${u('nothingYet')}</li>`}</ul>
       </div>`;
     } else $('person').innerHTML = '';
     const list = sim.npcs.slice().sort((a, b) => b.insp - a.insp);
-    $('people').innerHTML = list.map(n => {
-      const act = n.task ? V.ACT_NAMES[n.task.type] || '' : '';
-      return `<li data-id="${n.id}" class="${n.id === R.sel ? 'sel' : ''}"><span class="dot" style="background:${n.color}"></span>
-        <span><span class="nm">${esc(n.name)}${n.ageTicks < sim.DAY * 2 ? ' · дитина' : ''}</span><span class="act">${esc(act)} — ${esc(n.thought)}</span></span>
-        <span class="score">${Math.round(n.insp)}<small>${n.know.size} знань</small></span></li>`;
+    $('people').innerHTML = list.map(m => {
+      const act = m.task ? V.act(m.task.type) : '';
+      return `<li data-id="${m.id}" class="${m.id === R.sel ? 'sel' : ''}"><span class="dot" style="background:${m.color}"></span>
+        <span><span class="nm">${esc(V.nn(m.name))}${m.ageTicks < sim.DAY * 2 ? ' · ' + u('child') : ''}</span><span class="act">${esc(act)} — ${esc(V.R(m.thought))}</span></span>
+        <span class="score">${Math.round(m.insp)}<small>${m.know.size} ${u('knowN')}</small></span></li>`;
     }).join('');
   }
 
-  const ERAS = ['Кам\'яна доба', 'Доба кераміки', 'Мідна доба', 'Бронзова доба', 'Залізна доба', 'Доба скла й заліза', 'Електрична доба'];
   function renderDisc() {
-    const ei = ERAS.indexOf(sim.era);
-    let h = `<div class="timeline">${ERAS.map((e, i) => `<span class="${i <= ei ? 'on' : ''}">${esc(e.replace(' доба', '').replace('Доба ', ''))}</span>`).join('')}</div>`;
+    const ei = V.ERA_KEYS.indexOf(sim.era);
+    let h = `<div class="timeline">${V.ERA_KEYS.map((e, i) => `<span class="${i <= ei ? 'on' : ''}">${esc(V.eraShort(e))}</span>`).join('')}</div>`;
     const devs = Object.values(sim.devices);
-    h += `<h2>Винаходи (${devs.length})</h2>`;
+    h += `<h2>${u('inventions')} (${devs.length})</h2>`;
     h += devs.length ? devs.map(d => {
       const I = V.IDEAS[d.idea];
-      const parts = d.parts.map((id, i) => `${V.SLOT[I.slots[i]].name}: ${M[id].name}`).join(', ');
-      const v = d.extra && d.extra.volts ? ` · ${d.extra.volts.toFixed(2)} В` : '';
-      return `<div class="dev"><div class="top"><b>${esc(d.name)}</b><span class="q">якість ${d.quality}${v}</span><span class="muted">День ${d.day} · ${esc(npcName(d.inventor))}</span></div><div class="how">${esc(parts)} → ${esc(I.effect)}</div></div>`;
-    }).join('') : '<p class="muted">Ще нічого. Поселенці лише починають пробувати.</p>';
+      const parts = d.parts.map((id, i) => `${V.slotName(I.slots[i])}: ${V.mn(id)}`).join(', ');
+      const v = d.extra && d.extra.volts ? ` · ${d.extra.volts.toFixed(2)} ${V.lang === 'de' ? 'V' : 'В'}` : '';
+      return `<div class="dev"><div class="top"><b>${esc(V.devName(d))}</b><span class="q">${u('quality')} ${d.quality}${v}</span><span class="muted">${u('day')} ${d.day} · ${esc(npcName(d.inventor))}</span></div><div class="how">${esc(parts)} → ${esc(V.ideaEffect(d.idea))}</div></div>`;
+    }).join('') : `<p class="muted">${u('noInv')}</p>`;
     const known = [...sim.worldKnown].map(id => M[id]).filter(Boolean);
     const derived = known.filter(m => !V.BASE_RESOURCES.includes(m.id) && !['meat', 'fish', 'hide', 'bone'].includes(m.id));
-    h += `<h2 style="margin-top:16px">Матеріали (${known.length})</h2><p class="muted" style="font-size:12px;margin:0 0 8px">Торкніться матеріалу, щоб побачити властивості. Помаранчева рамка — створений поселенцями.</p>`;
+    h += `<h2 style="margin-top:16px">${u('materials')} (${known.length})</h2><p class="muted" style="font-size:12px;margin:0 0 8px">${u('matHint')}</p>`;
     if (selMat && M[selMat]) {
-      const m = M[selMat];
-      h += `<div class="matinfo"><b>${esc(m.name)}</b>${m.real === false ? ' <span class="tag">вигаданий у долині</span>' : m.real ? ' <span class="tag i">справжній матеріал</span>' : ''}<br>${esc(V.propLine(m))}${m.desc ? '<br><span class="muted">' + esc(m.desc) + '</span>' : ''}${m.usefulFor && m.usefulFor.length ? `<br>Найкращий для: ${esc(m.usefulFor.join(', '))}` : ''}${m.inventor ? `<br><span class="muted">Створено: день ${m.day}, ${esc(npcName(m.inventor))}</span>` : ''}</div>`;
+      const m = M[selMat], desc = V.matDesc(m);
+      h += `<div class="matinfo"><b>${esc(V.mn(m.id))}</b>${m.inventor ? (m.real ? ` <span class="tag i">${u('realMat')}</span>` : ` <span class="tag">${u('inventedHere')}</span>`) : ''}<br>${esc(V.propLine(m))}${desc ? '<br><span class="muted">' + esc(desc) + '</span>' : ''}${m.usefulFor && m.usefulFor.length ? `<br>${u('bestFor')}: ${esc(m.usefulFor.map(V.slotName).join(', '))}` : ''}${m.inventor ? `<br><span class="muted">${u('created')}: ${u('day')} ${m.day}, ${esc(npcName(m.inventor))}</span>` : ''}</div>`;
     }
-    const kindName = { organic: 'органіка', mineral: 'мінерал', ore: 'руда', fuel: 'паливо', food: 'їжа', liquid: 'рідина', ceramic: 'кераміка', metal: 'метал', composite: 'композит' };
-    const card = m => `<button class="mat ${m.inventor ? 'new' : ''} ${m.real ? 'real' : ''}" data-mat="${m.id}"><span class="sw" style="background:${m.color}"></span>${esc(m.name)}<span class="k">${m.alloy ? 'сплав' : kindName[m.kind] || m.kind}${m.inventor ? (m.real ? ' · справжній' : ' · новий') : ''}</span></button>`;
-    h += `<h3>Отримані</h3><div class="mats">${derived.map(card).join('') || '<span class="muted">поки немає</span>'}</div>`;
-    h += `<h3>Природні</h3><div class="mats">${known.filter(m => !derived.includes(m)).map(card).join('')}</div>`;
+    const card = m => `<button class="mat ${m.inventor ? 'new' : ''} ${m.real ? 'real' : ''}" data-mat="${m.id}"><span class="sw" style="background:${m.color}"></span>${esc(V.mn(m.id))}<span class="k">${V.kindName(m.alloy ? 'alloy' : m.kind)}${m.inventor ? ' · ' + (m.real ? u('realTag') : u('newTag')) : ''}</span></button>`;
+    h += `<h3>${u('derived')}</h3><div class="mats">${derived.map(card).join('') || `<span class="muted">${u('noneYet')}</span>`}</div>`;
+    h += `<h3>${u('natural')}</h3><div class="mats">${known.filter(m => !derived.includes(m)).map(card).join('')}</div>`;
     const recent = sim.discoveries.slice(-12).reverse();
-    if (recent.length) h += `<h3>Останні відкриття</h3>` + recent.map(d => `<div class="dev"><div class="top"><b>${esc(d.name)}</b><span class="muted">День ${d.day} · ${esc(npcName(d.by))}</span></div><div class="how">${esc(d.how)}${d.why ? ' — ' + esc(d.why) : ''}</div></div>`).join('');
+    if (recent.length) h += `<h3>${u('recent')}</h3>` + recent.map(d => {
+      let name, how, why = '';
+      if (d.kind === 'material') {
+        name = V.mn(d.id);
+        how = d.comp ? V.describeComp(d.comp) : V.R(d.how);
+        why = d.law ? V.lawWhy(d.law) : V.matDesc(M[d.id]);
+      } else {
+        name = V.devName(d.dev);
+        how = d.parts.map(([s, m]) => `${V.slotName(s)}: ${V.mn(m)}`).join(', ');
+        why = d.kind === 'device' ? V.ideaEffect(d.id) : `${u('quality')} ${d.quality}`;
+      }
+      return `<div class="dev"><div class="top"><b>${esc(name)}</b><span class="muted">${u('day')} ${d.day} · ${esc(npcName(d.by))}</span></div><div class="how">${esc(how)}${why ? ' — ' + esc(why) : ''}</div></div>`;
+    }).join('');
     $('disc').innerHTML = h;
   }
 
   function renderBrain() {
-    $('llmStatus').textContent = (L.cfg.enabled ? '' : 'вимкнено · ') + L.state.status + (L.state.ok ? ` · відповідей: ${L.state.ok}` : '');
-    $('llmLog').innerHTML = L.state.log.slice(0, 10).map(e => `<li class="${e.ok ? '' : 'bad'}"><b>${esc(e.who)}</b>: ${esc(e.text || '(без думки)')}${e.ok ? '' : ' <span class="muted">— відповідь не підійшла, вирішили правила</span>'}</li>`).join('');
-    $('seedLbl').textContent = 'Світ №' + sim.seed;
+    $('llmStatus').textContent = (L.cfg.enabled ? V.R(L.state.status) : u('llm.off')) + (L.state.ok ? ` · ${u('llm.answers')}: ${L.state.ok}` : '');
+    $('llmLog').innerHTML = L.state.log.slice(0, 10).map(e => `<li class="${e.ok ? '' : 'bad'}"><b>${esc(V.nn(e.who))}</b>: ${esc(e.text || u('llm.noThought'))}${e.ok ? '' : ` <span class="muted">— ${u('llm.bad')}</span>`}</li>`).join('');
+    $('seedLbl').textContent = u('worldNo') + sim.seed;
   }
 
+  setSpeed(1);
+  applyStatic();
+  renderStrip(true);
   renderPanel(true);
+  header(true);
   requestAnimationFrame(frame);
   V.ui = { get sim() { return sim; } };
 })(window.V = window.V || {});

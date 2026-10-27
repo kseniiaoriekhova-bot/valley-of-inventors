@@ -14,8 +14,7 @@
     };
   };
 
-  const T = V.T = { DEEP: 0, SHALLOW: 1, SAND: 2, GRASS: 3, FOREST: 4, HILLS: 5, MOUNT: 6 };
-  V.T_NAMES = ['глибока вода', 'мілина', 'пісок', 'лука', 'ліс', 'пагорби', 'гори'];
+  const T = V.TER = { DEEP: 0, SHALLOW: 1, SAND: 2, GRASS: 3, FOREST: 4, HILLS: 5, MOUNT: 6 };
 
   function valueNoise(rnd, w, h, cell) {
     const gw = Math.ceil(w / cell) + 2, gh = Math.ceil(h / cell) + 2;
@@ -119,8 +118,8 @@
     return { W, H, tiles, at, near, isWater, camp: { x: camp.x + 0.5, y: camp.y + 0.5 }, rnd };
   };
 
-  V.isLand = (world, x, y) => { const t = world.at(Math.floor(x), Math.floor(y)); return !!t && t.t >= V.T.SAND && t.t !== V.T.MOUNT; };
-  V.walkable = (world, x, y) => { const t = world.at(Math.floor(x), Math.floor(y)); return !!t && t.t >= V.T.SAND; };
+  V.isLand = (world, x, y) => { const t = world.at(Math.floor(x), Math.floor(y)); return !!t && t.t >= V.TER.SAND && t.t !== V.TER.MOUNT; };
+  V.walkable = (world, x, y) => { const t = world.at(Math.floor(x), Math.floor(y)); return !!t && t.t >= V.TER.SAND; };
 
   /* ---------- Тварини ---------- */
   V.ANIMALS = {
@@ -131,7 +130,7 @@
 
   V.spawnAnimals = function (sim) {
     const { world, rnd } = sim;
-    const land = world.tiles.filter(t => t.t === V.T.GRASS || t.t === V.T.FOREST);
+    const land = world.tiles.filter(t => t.t === V.TER.GRASS || t.t === V.TER.FOREST);
     const add = (type, n) => {
       for (let i = 0; i < n; i++) {
         const t = land[Math.floor(rnd() * land.length)];
