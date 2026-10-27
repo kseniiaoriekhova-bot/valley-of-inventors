@@ -103,11 +103,11 @@
   V.eraName = k => ERA[lang][k] || k;
   V.eraShort = k => ERA_SHORT[lang][k] || k;
   const ACT = {
-    uk: { gather: 'збирає', hunt: 'полює', fish: 'рибалить', experiment: 'експериментує', teach: 'навчає', build: 'будує', explore: 'досліджує', eat: 'їсть', sleep: 'спить', listen: 'слухає', play: 'грається', think: 'обмірковує' },
-    de: { gather: 'sammelt', hunt: 'jagt', fish: 'fischt', experiment: 'experimentiert', teach: 'lehrt', build: 'baut', explore: 'erkundet', eat: 'isst', sleep: 'schläft', listen: 'hört zu', play: 'spielt', think: 'denkt nach' },
+    uk: { gather: 'збирає', hunt: 'полює', fish: 'рибалить', experiment: 'експериментує', teach: 'навчає', build: 'будує', explore: 'досліджує', feed: 'годує тварин', eat: 'їсть', sleep: 'спить', listen: 'слухає', play: 'грається', think: 'обмірковує' },
+    de: { gather: 'sammelt', hunt: 'jagt', fish: 'fischt', experiment: 'experimentiert', teach: 'lehrt', build: 'baut', explore: 'erkundet', feed: 'füttert Tiere', eat: 'isst', sleep: 'schläft', listen: 'hört zu', play: 'spielt', think: 'denkt nach' },
   };
   V.act = t => ACT[lang][t] || t;
-  const ANIMAL = { uk: { rabbit: 'кріль', deer: 'олень', wolf: 'вовк' }, de: { rabbit: 'Kaninchen', deer: 'Hirsch', wolf: 'Wolf' } };
+  const ANIMAL = { uk: { rabbit: 'кріль', deer: 'олень', wolf: 'вовк', dog: 'собака' }, de: { rabbit: 'Kaninchen', deer: 'Hirsch', wolf: 'Wolf', dog: 'Hund' } };
   V.animalName = t => ANIMAL[lang][t] || t;
   const KIND = {
     uk: { organic: 'органіка', mineral: 'мінерал', ore: 'руда', fuel: 'паливо', food: 'їжа', liquid: 'рідина', ceramic: 'кераміка', metal: 'метал', composite: 'композит', alloy: 'сплав' },
@@ -307,6 +307,15 @@
     'log.advice': r => `${r.n} радить: для «${r.idea}», частина «${r.slot}» — ${r.m}. ${r.n2} спробує.`,
     'log.together': r => `★ Спільний винахід: ${r.n} і ${r.n2} — «${r.idea}»! Вирішальна порада: ${r.m}.`,
     'log.wolfDied': 'Старий вовк не знайшов здобичі й загинув від голоду.',
+    'th.feed': r => r.animal === 'вовк' ? 'Несу кістку вовкові.' : `Несу поїсти: ${r.animal}.`,
+    'th.fed': r => `${cap(r.animal)} вже менше мене боїться.`,
+    'th.dogHelps': 'Собака загнав здобич — вдале полювання!',
+    'log.firstFeed': r => `${r.n} вперше ділиться їжею з дикою твариною: ${r.animal}.`,
+    'log.firstDog': r => `★ Перший собака! Вовк, якого довго підгодовували, тепер ходить за поселенцем: ${r.n}. Він допомагатиме полювати й відганятиме диких вовків.`,
+    'log.dog': r => `Ще один прикормлений вовк став собакою. Господар: ${r.n}.`,
+    'log.tamedPen': r => `${cap(r.animal)} сам прийшов до табору й тепер живе в загороді. Його приручення — заслуга, яку отримує ${r.n}.`,
+    'log.tamed': r => `${cap(r.animal)} більше не боїться людей і пасеться біля табору. Приручення — заслуга, яку отримує ${r.n}.`,
+    'rw.kind': 'доброта до тварин', 'rw.tamedDog': 'приручив собаку',
     'log.wolves': 'З далеких лісів у долину прийшла нова зграя вовків.',
     'rw.solved': 'спільно розв\'язали проблему', 'rw.brainstorm': 'придумали разом', 'rw.coinvent': 'спільний винахід',
     // причини натхнення
@@ -438,6 +447,15 @@
     'log.advice': r => `${r.n} rät: für „${r.idea}“, Teil „${r.slot}“ — ${r.m}. ${r.n2} probiert es.`,
     'log.together': r => `★ Gemeinsame Erfindung: ${r.n} und ${r.n2} — „${r.idea}“! Entscheidender Rat: ${r.m}.`,
     'log.wolfDied': 'Ein alter Wolf fand keine Beute und ist verhungert.',
+    'th.feed': r => r.animal === 'Wolf' ? 'Ich bringe dem Wolf einen Knochen.' : `Ich bringe Futter: ${r.animal}.`,
+    'th.fed': r => `${r.animal}: fürchtet sich schon weniger vor mir.`,
+    'th.dogHelps': 'Der Hund hat die Beute gestellt — erfolgreiche Jagd!',
+    'log.firstFeed': r => `${r.n} teilt zum ersten Mal Essen mit einem wilden Tier: ${r.animal}.`,
+    'log.firstDog': r => `★ Der erste Hund! Ein lange gefütterter Wolf folgt jetzt ${r.n}. Er hilft bei der Jagd und vertreibt wilde Wölfe.`,
+    'log.dog': r => `Noch ein gefütterter Wolf ist zum Hund geworden. Besitzer: ${r.n}.`,
+    'log.tamedPen': r => `${r.animal} kam von selbst ins Lager und lebt jetzt im Gehege. Gezähmt von ${r.n}.`,
+    'log.tamed': r => `${r.animal} hat keine Angst mehr vor Menschen und weidet am Lager. Gezähmt von ${r.n}.`,
+    'rw.kind': 'Güte zu Tieren', 'rw.tamedDog': 'Hund gezähmt',
     'log.wolves': 'Aus fernen Wäldern ist ein neues Wolfsrudel ins Tal gekommen.',
     'rw.solved': 'gemeinsam ein Problem gelöst', 'rw.brainstorm': 'gemeinsam ausgedacht', 'rw.coinvent': 'gemeinsame Erfindung',
     'rw.learn': 'neues Wissen', 'rw.foundMat': 'neuen Stoff gefunden', 'rw.sawFish': 'Fische gesehen', 'rw.idea': 'neue Idee',
@@ -500,7 +518,7 @@
       title: 'Долина винахідників', q1: '«', q2: '»',
       'aria.speed': 'Швидкість часу', pause: 'Пауза', resume: 'Продовжити',
       'stat.pop': 'мешканців', 'stat.food': 'їжі в запасі', 'stat.mats': 'відомих матеріалів', 'stat.inv': 'винаходів',
-      'stat.exp': 'дослідів', 'stat.insp': 'натхнення', 'stat.rab': 'кролів', 'stat.deer': 'оленів', 'stat.wolf': 'вовків',
+      'stat.exp': 'дослідів', 'stat.insp': 'натхнення', 'stat.rab': 'кролів', 'stat.deer': 'оленів', 'stat.wolf': 'вовків', 'stat.dog': 'собак', 'lg.dog': 'собака',
       day: 'День', night: 'ніч', dayShort: 'Д',
       'lg.rabbit': 'кріль', 'lg.deer': 'олень', 'lg.wolf': 'вовк', 'lg.ore': 'руда', 'lg.exp': 'дослід',
       'lg.hint': 'Торкніться поселенця, щоб стежити за ним.',
@@ -557,7 +575,7 @@
       title: 'Tal der Erfinder', q1: '„', q2: '“',
       'aria.speed': 'Zeitgeschwindigkeit', pause: 'Pause', resume: 'Fortsetzen',
       'stat.pop': 'Bewohner', 'stat.food': 'Nahrung im Vorrat', 'stat.mats': 'bekannte Stoffe', 'stat.inv': 'Erfindungen',
-      'stat.exp': 'Versuche', 'stat.insp': 'Inspiration', 'stat.rab': 'Kaninchen', 'stat.deer': 'Hirsche', 'stat.wolf': 'Wölfe',
+      'stat.exp': 'Versuche', 'stat.insp': 'Inspiration', 'stat.rab': 'Kaninchen', 'stat.deer': 'Hirsche', 'stat.wolf': 'Wölfe', 'stat.dog': 'Hunde', 'lg.dog': 'Hund',
       day: 'Tag', night: 'Nacht', dayShort: 'T',
       'lg.rabbit': 'Kaninchen', 'lg.deer': 'Hirsch', 'lg.wolf': 'Wolf', 'lg.ore': 'Erz', 'lg.exp': 'Versuch',
       'lg.hint': 'Tippe auf einen Siedler, um ihm zu folgen.',

@@ -130,7 +130,9 @@
     rabbit: { name: 'кріль', speed: 0.07, cap: 60, breed: 0.0009, prey: true, meat: 2, hide: 1, bone: 0 },
     deer: { name: 'олень', speed: 0.085, cap: 22, breed: 0.0004, prey: true, meat: 5, hide: 2, bone: 2 },
     wolf: { name: 'вовк', speed: 0.1, cap: 8, breed: 0.0003, prey: false },
+    dog: { name: 'собака', speed: 0.11, cap: 6, breed: 0.0001, prey: false },
   };
+  const isPrey = a => a.type === 'rabbit' || a.type === 'deer';
 
   /* Суходіл, з'єднаний із табором: тварини з'являються лише тут,
      інакше вовк міг опинитися на острівці без здобичі й загинути */
@@ -165,32 +167,52 @@
 
   V.stepAnimals = function (sim) {
     const { world, rnd, animals } = sim;
-    const counts = { rabbit: 0, deer: 0, wolf: 0 };
+    const counts = { rabbit: 0, deer: 0, wolf: 0, dog: 0 };
     for (const a of animals) if (a.alive) counts[a.type]++;
     const born = [];
     for (const a of animals) {
       if (!a.alive) continue;
       const spec = V.ANIMALS[a.type];
       let speed = spec.speed * 0.45;
-      if (a.type === 'wolf') {
+      if (a.trust && !a.tame && a.type !== 'dog') a.trust = Math.max(0, a.trust - 0.004);     // без підгодовування довіра повільно згасає
+      if (a.type === 'dog') {
+        // собака ходить за господарем, допомагає на полюванні й відганяє диких вовків
+        let owner = sim.npcs.find(n => n.id === a.owner);
+        if (!owner && sim.npcs.length) { owner = sim.npcs[0]; a.owner = owner.id; }
+        a.hunger = Math.max(0, a.hunger - 0.05);            // собак підгодовують у таборі
+        const hunt = owner && owner.task && owner.task.type === 'hunt' && owner.task.phase === 1 ? animals.find(b => b.id === owner.task.target && b.alive) : null;
+        const wild = animals.find(b => b.alive && b.type === 'wolf' && Math.hypot(b.x - a.x, b.y - a.y) < 5);
+        const tgt = hunt || wild || owner;
+        if (tgt) {
+          const d = Math.hypot(tgt.x - a.x, tgt.y - a.y);
+          if (tgt === owner ? d > 1.4 : true) { a.dir = Math.atan2(tgt.y - a.y, tgt.x - a.x); speed = spec.speed * (tgt === owner && d < 4 ? 0.8 : 1.2); }
+          else speed = 0.01;
+          if (tgt === wild && d < 0.8) { wild.dir = Math.atan2(wild.y - a.y, wild.x - a.x); wild.scared = sim.tick; }
+        }
+        if (counts.dog >= 2 && counts.dog < spec.cap && sim.foodStock() > sim.npcs.length * 3 && rnd() < spec.breed) born.push({ type: 'dog', x: a.x, y: a.y, owner: a.owner });
+      } else if (a.type === 'wolf') {
         a.hunger += 0.022;
         if (a.hunger > 40) {
           let prey = null, bd = a.hunger > 90 ? 26 : 16;   // голодний вовк шукає далі
-          for (const b of animals) if (b.alive && b.type !== 'wolf') { const d = Math.hypot(b.x - a.x, b.y - a.y); if (d < bd) { bd = d; prey = b; } }
+          for (const b of animals) if (b.alive && isPrey(b)) { const d = Math.hypot(b.x - a.x, b.y - a.y); if (d < bd) { bd = d; prey = b; } }
           if (prey) {
             a.dir = Math.atan2(prey.y - a.y, prey.x - a.x); speed = spec.speed;
             if (bd < 0.6 && rnd() < 0.08) { prey.alive = false; a.hunger = Math.max(0, a.hunger - (prey.type === 'deer' ? 90 : 45)); sim.stats.wolfKills++; }
           }
         }
-        // вовки тримаються подалі від табору вдень
+        // вовки тримаються подалі від табору вдень — крім прикормлених
         const dc = Math.hypot(a.x - world.camp.x, a.y - world.camp.y);
-        if (dc < 7 && !sim.isNight()) { a.dir = Math.atan2(a.y - world.camp.y, a.x - world.camp.x); speed = spec.speed; }
+        if (dc < 7 && !sim.isNight() && (a.trust || 0) < 40) { a.dir = Math.atan2(a.y - world.camp.y, a.x - world.camp.x); speed = spec.speed; }
+        // собака неподалік — дикий вовк відступає
+        for (const b of animals) if (b.alive && b.type === 'dog' && Math.hypot(b.x - a.x, b.y - a.y) < 4) { a.dir = Math.atan2(a.y - b.y, a.x - b.x); speed = spec.speed; break; }
         if (a.hunger > 230 && rnd() < 0.001) { a.alive = false; counts.wolf--; if (sim.wolfDied) sim.wolfDied(a); continue; }
         if (a.hunger < 35 && counts.wolf < spec.cap && rnd() < spec.breed) { born.push({ type: 'wolf', x: a.x, y: a.y }); a.hunger += 15; }
       } else {
-        // травоїдні: тікають від вовків і від людей, що полюють
+        // травоїдні: тікають від вовків, собак і від людей, що полюють
         let threat = null, bd = a.type === 'deer' ? 5 : 3.5;
-        for (const b of animals) if (b.alive && b.type === 'wolf') { const d = Math.hypot(b.x - a.x, b.y - a.y); if (d < bd) { bd = d; threat = b; } }
+        for (const b of animals) if (b.alive && (b.type === 'wolf' || b.type === 'dog')) { const d = Math.hypot(b.x - a.x, b.y - a.y); if (d < bd && !(b.type === 'dog' && (a.trust || 0) > 40)) { bd = d; threat = b; } }
+        // прикормлені тримаються ближче до табору
+        if (!threat && (a.trust || 0) > 30 && Math.hypot(a.x - world.camp.x, a.y - world.camp.y) > 6 && rnd() < 0.05) a.dir = Math.atan2(world.camp.y - a.y, world.camp.x - a.x);
         for (const n of sim.npcs) if (n.task && n.task.type === 'hunt' && n.task.target === a.id) { const d = Math.hypot(n.x - a.x, n.y - a.y); if (d < bd) { bd = d; threat = n; } }
         if (threat) { a.dir = Math.atan2(a.y - threat.y, a.x - threat.x) + (rnd() - 0.5) * 0.6; speed = spec.speed; }
         else if (rnd() < 0.04) a.dir += (rnd() - 0.5) * 2;
@@ -201,7 +223,7 @@
       if (V.isLand(world, nx, ny)) { a.x = nx; a.y = ny; } else a.dir += Math.PI * (0.5 + rnd());
     }
     for (const b of born) {
-      sim.animals.push({ id: sim.nextId++, type: b.type, x: b.x, y: b.y, dir: rnd() * 6.28, hunger: 0, alive: true }); counts[b.type]++;
+      sim.animals.push({ id: sim.nextId++, type: b.type, x: b.x, y: b.y, dir: rnd() * 6.28, hunger: 0, alive: true, owner: b.owner }); counts[b.type]++;
       if (b.type === 'wolf' && sim.wolfBorn) sim.wolfBorn();
     }
     // нова зграя приходить у долину, якщо вовків майже не лишилося

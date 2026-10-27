@@ -348,7 +348,7 @@
       `<span><b>${Object.keys(sim.devices).length}</b>${u('stat.inv')}</span>` +
       `<span><b>${sim.attempts}</b>${u('stat.exp')}</span>` +
       `<span><b>${Math.round(insp)}</b>${u('stat.insp')}</span>` +
-      `<span><b>${cnt('rabbit')}</b>${u('stat.rab')} · <b>${cnt('deer')}</b>${u('stat.deer')} · <b>${cnt('wolf')}</b>${u('stat.wolf')}</span>`;
+      `<span><b>${cnt('rabbit')}</b>${u('stat.rab')} · <b>${cnt('deer')}</b>${u('stat.deer')} · <b>${cnt('wolf')}</b>${u('stat.wolf')}${cnt('dog') ? ` · <b>${cnt('dog')}</b>${u('stat.dog')}` : ''}</span>`;
     renderStrip(false);
     renderLLMState();
     renderPanel(false);

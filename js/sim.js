@@ -14,10 +14,12 @@
   const R = V.REWARD = {
     learn: 2, teach: 4, taught: 2, idea: 2, material: 15, useful: 20, invent: 40, partial: 5, fail: 1,
     improve: 10, impact: 0.3, help: 3, build: 5, hunt: 1.5, gather: 0.5, explore: 1,
-    solve: 6, brainstorm: 3, coinvent: 20,
+    solve: 6, brainstorm: 3, coinvent: 20, kind: 2, tamedDog: 15, tamedAnimal: 6,
   };
-  const ACTS = ['gather', 'hunt', 'fish', 'experiment', 'teach', 'build', 'explore'];
+  const ACTS = ['gather', 'hunt', 'fish', 'experiment', 'teach', 'build', 'explore', 'feed'];
   const msg = V.msg;
+  // на прикормлених і приручених не полюють
+  const huntable = a => (a.type === 'rabbit' || a.type === 'deer') && (a.trust || 0) < 30 && !a.tame;
 
   function Sim(seed, saved) {
     this.seed = seed;
@@ -71,11 +73,11 @@
       v: SAVE_VERSION, seed: this.seed, rng: this.rnd.getState(), tick: this.tick, nextId: this.nextId,
       tiles, npcs: this.npcs.map(npc),
       dead: this.dead.map(n => ({ id: n.id, name: n.name, color: n.color, history: n.history, inventions: n.inventions, insp: n.insp, know: [...n.know].slice(0, 0), failures: [], val: n.val, skill: n.skill, friends: {}, thought: n.thought, hunger: 100, energy: 0, social: 0, health: 0, ageTicks: n.ageTicks, problems: {}, suggest: [] })),
-      animals: this.animals.filter(a => a.alive).map(a => ({ id: a.id, type: a.type, x: a.x, y: a.y, dir: a.dir, hunger: a.hunger, alive: true })),
+      animals: this.animals.filter(a => a.alive).map(a => ({ id: a.id, type: a.type, x: a.x, y: a.y, dir: a.dir, hunger: a.hunger, alive: true, trust: a.trust || 0, owner: a.owner, fedBy: a.fedBy, tame: a.tame })),
       store: this.store, devices: this.devices, structures: this.structures,
       worldKnown: [...this.worldKnown], chronicle: this.chronicle, discoveries: this.discoveries,
       genCount: this.genCount, attempts: this.attempts, triedPairs: [...this.triedPairs], ideasSeen: [...this.ideasSeen],
-      pen: this.pen, houses: this.houses, era: this.era, stats: this.stats, adviceSeen: this.adviceSeen || {},
+      pen: this.pen, houses: this.houses, era: this.era, stats: this.stats, adviceSeen: this.adviceSeen || {}, fedTypes: this.fedTypes || {},
       mats: Object.values(M).filter(m => /^g\d+$/.test(m.id)),
     };
   };
@@ -92,7 +94,7 @@
       store: d.store, devices: d.devices, structures: d.structures, worldKnown: new Set(d.worldKnown),
       chronicle: d.chronicle, discoveries: d.discoveries, genCount: d.genCount, attempts: d.attempts,
       triedPairs: new Set(d.triedPairs), ideasSeen: new Set(d.ideasSeen), pen: d.pen, houses: d.houses,
-      era: d.era, stats: d.stats, adviceSeen: d.adviceSeen,
+      era: d.era, stats: d.stats, adviceSeen: d.adviceSeen, fedTypes: d.fedTypes || {},
     });
   };
 
@@ -595,16 +597,18 @@
     const food = this.foodStock(), pop = this.npcs.length;
     const mult = {
       gather: 1 + (food < pop * 2 ? 1.5 : 0) + (n.goalMats && n.goalMats.length ? 1 : 0),
-      hunt: (food < pop * 3 ? 1.6 : 0.5) * (this.animals.some(a => a.alive && a.type !== 'wolf') ? 1 : 0),
+      hunt: (food < pop * 3 ? 1.6 : 0.5) * (this.animals.some(a => a.alive && huntable(a)) ? 1 : 0),
       fish: this.hasDev(n, 'net') ? (food < pop * 3 ? 1.6 : 0.6) : 0,
       experiment: (0.5 + n.curiosity) * (food > pop ? 1.2 : 0.5),
       teach: (0.4 + n.sociability) * (n.social > 40 ? 1.6 : 1) * (pop > 1 ? 1 : 0),
       build: this.devices.house && this.houses < Math.ceil(pop / 4) ? 1.2 : 0,
       explore: 0.3 + n.curiosity * 0.6,
+      // підгодувати тварин — лише коли в таборі є надлишок їжі
+      feed: food > pop * 3 && (this.stock('bone') > 0 || this.stock('berries') > pop) ? 0.25 + n.sociability * 0.5 : 0,
     };
     const tau = 2.5;
     let tot = 0; const w = {};
-    for (const a of ACTS) { w[a] = mult[a] > 0 ? Math.exp(Math.min(8, n.val[a] / tau)) * mult[a] : 0; tot += w[a]; }
+    for (const a of ACTS) { if (n.val[a] == null) n.val[a] = 3; w[a] = mult[a] > 0 ? Math.exp(Math.min(8, n.val[a] / tau)) * mult[a] : 0; tot += w[a]; }
     let r = rnd() * tot, act = 'gather';
     for (const a of ACTS) { r -= w[a]; if (r <= 0) { act = a; break; } }
     if (act === 'gather') {
@@ -702,6 +706,7 @@
       case 'teach': this.doTeach(n, t); break;
       case 'listen': if (t.t > 90 || !this.npcs.some(m => m.task && m.task.type === 'teach' && m.task.partner === n.id)) this.endTask(n); break;
       case 'build': this.doBuild(n, t); break;
+      case 'feed': this.doFeed(n, t); break;
       default: this.endTask(n);
     }
     if (this.tick % 20 === n.id % 20) { this.look(n, 2); this.checkIdeas(n); }
@@ -736,7 +741,7 @@
     if (t.phase === 0) {
       let best = null, bd = 28;
       const canPen = this.structures.pen && n.know.has('d:pen');
-      for (const a of this.animals) if (a.alive && a.type !== 'wolf') { const d = Math.hypot(a.x - n.x, a.y - n.y) * (a.type === 'deer' ? 0.8 : 1); if (d < bd) { bd = d; best = a; } }
+      for (const a of this.animals) if (a.alive && huntable(a)) { const d = Math.hypot(a.x - n.x, a.y - n.y) * (a.type === 'deer' ? 0.8 : 1); if (d < bd) { bd = d; best = a; } }
       if (!best) { this.endTask(n); return; }
       t.target = best.id; t.phase = 1; t.capture = canPen && best.type === 'rabbit' && this.pen < 12 && this.rnd() < 0.5;
       if (t.capture) think(n, 'th.capture'); else think(n, 'th.huntFor', { animal: best.type });
@@ -747,7 +752,8 @@
       this.moveTo(n, a.x, a.y, 1.25);
       if (Math.hypot(a.x - n.x, a.y - n.y) < 0.8 && this.rnd() < 0.15) {
         const spear = this.hasDev(n, 'spear') ? this.devQ('spear') * 0.45 : 0;
-        const p = (0.2 + spear + n.skill.hunt * 0.03) * (a.type === 'deer' ? 0.6 : 1);
+        const dog = this.animals.some(d => d.alive && d.type === 'dog' && d.owner === n.id && Math.hypot(d.x - n.x, d.y - n.y) < 6);
+        const p = (0.2 + spear + (dog ? 0.25 : 0) + n.skill.hunt * 0.03) * (a.type === 'deer' ? 0.6 : 1);
         if (this.rnd() < p) {
           a.alive = false; n.hunts++; n.skill.hunt += 0.08; this.stats.hunts++;
           if (spear) this.useDev(n, 'spear');
@@ -756,7 +762,7 @@
           const knife = this.hasDev(n, 'knife') ? 1 : 0;
           if (knife) this.useDev(n, 'knife');
           n.carry = { id: 'meat', k: spec.meat, extra: [['hide', spec.hide + knife], ['bone', spec.bone + knife]] };
-          think(n, 'th.goodHunt'); t.phase = 2;
+          think(n, dog ? 'th.dogHelps' : 'th.goodHunt'); t.phase = 2;
           this.reward(n, R.hunt, 'hunt');
           if (!n.know.has('m:hide')) this.learn(n, 'm:hide'); if (!n.know.has('m:bone') && spec.bone + knife > 0) this.learn(n, 'm:bone'); if (!n.know.has('m:meat')) this.learn(n, 'm:meat');
         }
@@ -769,6 +775,57 @@
         n.carry = null; this.endTask(n);
       }
     }
+  };
+
+  /* ---------- Підгодовування тварин і приручення ----------
+     Вовкам — кістки, травоїдним — ягоди. Довіра росте з кожним разом;
+     вовк, що зовсім довіряє людям, стає собакою. */
+  P.doFeed = function (n, t) {
+    if (t.phase === 0) {
+      let best = null, bs = -1e9;
+      const dogs = this.animals.filter(x => x.alive && x.type === 'dog').length;
+      const dogCap = Math.min(6, Math.ceil(this.npcs.length / 4));
+      for (const a of this.animals) {
+        if (!a.alive || a.type === 'dog' || a.tame) continue;
+        if (a.type === 'wolf' && dogs >= dogCap) continue;           // собак уже вистачає
+        const d = Math.hypot(a.x - n.x, a.y - n.y); if (d > 25) continue;
+        const food = a.type === 'wolf' ? (this.stock('bone') > 0 ? 'bone' : this.stock('meat') > this.npcs.length ? 'meat' : null) : (this.stock('berries') > this.npcs.length ? 'berries' : null);
+        if (!food) continue;
+        const s = (a.trust || 0) * 0.6 + (a.fedBy === n.id ? 20 : 0) + (a.type === 'wolf' ? 8 : 0) - d;
+        if (s > bs) { bs = s; best = { a, food }; }
+      }
+      if (!best || !this.take(best.food)) { this.endTask(n); return; }
+      t.target = best.a.id; t.food = best.food; n.carry = { id: best.food, k: 1 }; t.phase = 1;
+      think(n, 'th.feed', { animal: best.a.type });
+    }
+    if (t.phase === 1) {
+      const a = this.animals.find(x => x.id === t.target && x.alive);
+      if (!a || a.type === 'dog' || a.tame || t.t > 700) { if (n.carry) { this.give(n.carry.id, 1); n.carry = null; } this.endTask(n); return; }
+      this.moveTo(n, a.x, a.y);
+      if (Math.hypot(a.x - n.x, a.y - n.y) < 2.5) {
+        n.carry = null;
+        a.trust = Math.min(100, (a.trust || 0) + (a.type === 'wolf' ? 12 : 18) + (a.fedBy === n.id ? 6 : 0));
+        a.fedBy = n.id; a.hunger = Math.max(0, (a.hunger || 0) - 35);
+        this.reward(n, R.kind, 'kind');
+        this.fedTypes = this.fedTypes || {};
+        if (!this.fedTypes[a.type]) { this.fedTypes[a.type] = true; this.log(msg('log.firstFeed', { n: n.name, animal: a.type }), 'nature', n); }
+        think(n, 'th.fed', { animal: a.type });
+        if (a.trust >= 100) this.tameAnimal(n, a);
+        this.endTask(n);
+      }
+    }
+  };
+  P.tameAnimal = function (n, a) {
+    if (a.type === 'wolf') {
+      a.type = 'dog'; a.owner = n.id; a.trust = 100;
+      this.stats.dogs = (this.stats.dogs || 0) + 1;
+      this.reward(n, R.tamedDog, 'tamedDog');
+      this.log(msg(this.stats.dogs === 1 ? 'log.firstDog' : 'log.dog', { n: n.name }), 'discovery', n);
+      return;
+    }
+    this.reward(n, R.tamedAnimal, 'tamed');
+    if (this.structures.pen && this.pen < 12) { a.alive = false; this.pen++; this.log(msg('log.tamedPen', { n: n.name, animal: a.type }), 'nature', n); }
+    else { a.tame = true; a.trust = 100; this.log(msg('log.tamed', { n: n.name, animal: a.type }), 'nature', n); }
   };
 
   P.doFish = function (n, t) {

@@ -103,13 +103,16 @@
       if (a.type === 'rabbit') { g.fillStyle = '#f1ece2'; g.beginPath(); g.arc(x, y, ts * 0.16, 0, 6.29); g.fill(); g.strokeStyle = 'rgba(0,0,0,0.3)'; g.lineWidth = d; g.stroke(); }
       else if (a.type === 'deer') { g.fillStyle = '#9a6a3a'; g.beginPath(); g.ellipse(x, y, ts * 0.32, ts * 0.2, a.dir, 0, 6.29); g.fill(); g.fillStyle = '#e8d8bb'; g.beginPath(); g.arc(x + Math.cos(a.dir) * ts * 0.3, y + Math.sin(a.dir) * ts * 0.3, ts * 0.09, 0, 6.29); g.fill(); }
       else {
-        g.fillStyle = '#4b4f55'; g.beginPath();
+        const dog = a.type === 'dog';
+        g.fillStyle = dog ? '#b07a43' : '#4b4f55'; g.beginPath();
         g.moveTo(x + Math.cos(a.dir) * ts * 0.38, y + Math.sin(a.dir) * ts * 0.38);
         g.lineTo(x + Math.cos(a.dir + 2.5) * ts * 0.28, y + Math.sin(a.dir + 2.5) * ts * 0.28);
         g.lineTo(x + Math.cos(a.dir - 2.5) * ts * 0.28, y + Math.sin(a.dir - 2.5) * ts * 0.28);
         g.closePath(); g.fill();
-        g.fillStyle = '#e8c25a'; g.beginPath(); g.arc(x + Math.cos(a.dir) * ts * 0.2, y + Math.sin(a.dir) * ts * 0.2, ts * 0.05, 0, 6.29); g.fill();
+        g.fillStyle = dog ? '#d64545' : '#e8c25a'; g.beginPath(); g.arc(x + Math.cos(a.dir) * ts * 0.2, y + Math.sin(a.dir) * ts * 0.2, ts * (dog ? 0.08 : 0.05), 0, 6.29); g.fill();
       }
+      // прикормлені тварини — світла обвідка
+      if ((a.trust || 0) > 40 && a.type !== 'dog') { g.strokeStyle = 'rgba(255,214,120,0.9)'; g.lineWidth = 1.2 * d; g.beginPath(); g.arc(x, y, ts * 0.36, 0, 6.29); g.stroke(); }
     }
 
     // поселенці
