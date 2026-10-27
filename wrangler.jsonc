@@ -4,6 +4,9 @@
   "name": "valley-of-inventors",
   "main": "worker/index.js",
   "compatibility_date": "2026-10-01",
+  // публічна адреса valley-of-inventors.<піддомен>.workers.dev
+  "workers_dev": true,
+  "preview_urls": true,
   "assets": {
     "directory": "./dist",
     "binding": "ASSETS",
