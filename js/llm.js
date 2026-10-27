@@ -27,7 +27,7 @@
     cfg, state,
     save() { try { localStorage.setItem('valley.llm', JSON.stringify(cfg)); } catch (e) { /* ок */ } },
     set(k, v) { cfg[k] = v; LLM.save(); if (k === 'enabled') { state.status = [v ? 'st.on' : 'st.off', {}]; state.health = ''; state.fails = 0; state.backoff = 0; } },
-    ready() { return cfg.enabled && !cfg.paused && !state.busy && performance.now() > state.backoff && (performance.now() - state.last) / 1000 > cfg.cooldown; },
+    ready() { return cfg.enabled && !cfg.paused && !state.suspended && !state.busy && performance.now() > state.backoff && (performance.now() - state.last) / 1000 > cfg.cooldown; },
     /* Загальний стан для індикатора: off | paused | limit | down | ok | idle */
     mode() {
       if (!cfg.enabled) return 'off';

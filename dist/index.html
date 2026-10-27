@@ -220,6 +220,15 @@ code { font: 12px var(--mono); background: var(--soft); padding: 1px 5px; border
 
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 
+/* наздоганяння пропущеного часу */
+.away { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; background: color-mix(in srgb, var(--bg) 70%, transparent); backdrop-filter: blur(3px);
+  padding: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); }
+.awaycard { width: min(440px, 100%); background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 18px; display: grid; gap: 10px; box-shadow: 0 10px 40px rgba(0,0,0,0.18); }
+.awaycard h2 { font-size: 15px; }
+.awaycard .meter { height: 8px; margin: 6px 0; }
+.awaycard #awayProgress, .awaycard #awaySummary { display: grid; gap: 8px; }
+.awaycard #awaySummary[hidden], .awaycard #awayProgress[hidden] { display: none; }
+
 </style>
 </head>
 <body>
@@ -372,6 +381,14 @@ code { font: 12px var(--mono); background: var(--soft); padding: 1px 5px; border
         <p class="muted" data-i18n="w.auto"></p>
       </section>
       <section class="card">
+        <label class="row switch"><input type="checkbox" id="awayOn"> <span data-i18n="away.on"></span></label>
+        <div class="grid2">
+          <label for="awayCap" data-i18n="away.cap"></label>
+          <select id="awayCap"><option value="5">5</option><option value="20">20</option><option value="50">50</option><option value="100">100</option></select>
+        </div>
+        <p class="muted" data-i18n="away.note"></p>
+      </section>
+      <section class="card">
         <div class="row gap"><button class="btn" id="newWorld" data-i18n="w.new"></button></div>
         <p class="muted" data-i18n="w.newNote"></p>
       </section>
@@ -383,6 +400,23 @@ code { font: 12px var(--mono); background: var(--soft); padding: 1px 5px; border
     </div>
   </aside>
 </main>
+
+<div class="away" id="away" hidden>
+  <div class="awaycard" role="dialog" aria-modal="true" aria-labelledby="awayTitle">
+    <h2 id="awayTitle" data-i18n="away.title"></h2>
+    <div id="awayProgress">
+      <p id="awayText" class="status"></p>
+      <div class="meter gold"><i id="awayBar" style="width:0%"></i></div>
+      <p class="muted" data-i18n="away.rules"></p>
+      <button class="btn ghost" id="awayStop" data-i18n="away.stop"></button>
+    </div>
+    <div id="awaySummary" hidden>
+      <p id="awayDays"></p>
+      <ul class="plain" id="awayList"></ul>
+      <button class="btn" id="awayOk" data-i18n="away.ok"></button>
+    </div>
+  </div>
+</div>
 
 <script>
 /* ============================================================
@@ -667,6 +701,7 @@ code { font: 12px var(--mono); background: var(--soft); padding: 1px 5px; border
     'log.llmDown': 'LLM-мозок не відповідає. Поселенці думають за правилами, поки модель не повернеться.',
     'log.llmLimit': r => `Денний ліміт моделі вичерпано. До ${V.fmtTime(r.until).replace(/^завтра о |^о /, '')} поселенці думають за правилами.`,
     'log.llmUp': 'LLM-мозок знову працює.',
+    'log.away': r => `Поки спостерігача не було, у долині минуло днів: ${r.k}.`,
     'log.llmPaused': 'LLM-мозок поставлено на паузу. Поселенці думають за правилами.',
     'log.llmResumed': 'LLM-мозок знову увімкнено.',
     'dlg.p.hotter': r => `Хочу щось отримати з такого: ${r.ms}, але жару замало — лише ${r.t}°C.`,
@@ -797,6 +832,7 @@ code { font: 12px var(--mono); background: var(--soft); padding: 1px 5px; border
     'log.llmDown': 'Das LLM-Gehirn antwortet nicht. Die Siedler denken nach Regeln, bis das Modell zurück ist.',
     'log.llmLimit': r => `Das Tageslimit des Modells ist erreicht. Bis ${V.fmtTime(r.until).replace(/^morgen um |^um /, '')} Uhr denken die Siedler nach Regeln.`,
     'log.llmUp': 'Das LLM-Gehirn funktioniert wieder.',
+    'log.away': r => `Während der Beobachter weg war, vergingen im Tal Tage: ${r.k}.`,
     'log.llmPaused': 'Das LLM-Gehirn ist pausiert. Die Siedler denken nach Regeln.',
     'log.llmResumed': 'Das LLM-Gehirn ist wieder an.',
     'dlg.p.hotter': r => `Ich will etwas aus ${r.ms} gewinnen, aber die Glut reicht nicht — nur ${r.t} °C.`,
@@ -919,6 +955,11 @@ code { font: 12px var(--mono); background: var(--soft); padding: 1px 5px; border
       'about.3': '<b>Натхнення</b>: нове знання +2, навчити іншого +4, новий матеріал +15, матеріал кращий за відомі +20, робочий винахід до +40, покращення +10, невдача +1, бонус автору, коли інші користуються винаходом. Поселенці частіше роблять те, що приносить натхнення.',
       'about.4': '<b>Нові матеріали</b>: якщо склад збігається з реальним (бронза, спекулум, сталь, саман…), матеріал отримує справжню назву; якщо ні — вигадану з поясненням і найближчим відомим аналогом.',
       'tab.worlds': 'Світи', 'banner.close': 'Сховати',
+      'away.on': 'Цивілізація розвивається, поки мене немає', 'away.cap': 'Наздоганяти не більше ніж, днів',
+      'away.note': 'Заблокований телефон зупиняє сторінку. Коли ви повертаєтеся, гра доганяє пропущений час на тій швидкості, що була ввімкнена, — за правилами, без LLM. Пауза гри зупиняє і цей розвиток.',
+      'away.title': 'Цивілізація жила без вас', 'away.rules': 'Поки вас не було, поселенці думали за правилами (без LLM).', 'away.stop': 'Досить, показати',
+      'away.days': 'Минуло днів', 'away.disc': 'Нові відкриття', 'away.none': 'нових відкриттів немає — звичайне життя', 'away.era': 'Нова епоха',
+      'away.together': 'Спільних рішень', 'away.births': 'Народилося', 'away.deaths': 'Померло', 'away.ok': 'Дивитися далі',
       'chip.off': 'LLM вимкнено', 'chip.paused': 'LLM на паузі', 'chip.ok': 'LLM працює', 'chip.idle': 'LLM готовий', 'chip.down': 'LLM не відповідає', 'chip.limit': 'LLM: ліміт вичерпано',
       'llm.pauseBtn': 'Пауза моделі', 'llm.resumeBtn': 'Продовжити модель',
       'w.current': 'Поточна цивілізація', 'w.name': 'Назва', 'w.save': 'Зберегти зараз', 'w.savedAt': 'Збережено',
@@ -971,6 +1012,11 @@ code { font: 12px var(--mono); background: var(--soft); padding: 1px 5px; border
       'about.3': '<b>Inspiration</b>: neues Wissen +2, andere lehren +4, neuer Stoff +15, Stoff besser als alle bekannten +20, funktionierende Erfindung bis +40, Verbesserung +10, Fehlschlag +1, Bonus für den Erfinder, wenn andere die Erfindung nutzen. Siedler tun öfter, was Inspiration bringt.',
       'about.4': '<b>Neue Stoffe</b>: Stimmt die Zusammensetzung mit einem echten Werkstoff überein (Bronze, Speculum, Stahl, Strohlehm …), bekommt er den echten Namen; sonst einen erfundenen mit Erklärung und dem ähnlichsten bekannten Stoff.',
       'tab.worlds': 'Welten', 'banner.close': 'Ausblenden',
+      'away.on': 'Die Zivilisation entwickelt sich weiter, während ich weg bin', 'away.cap': 'Höchstens nachholen, Tage',
+      'away.note': 'Ein gesperrtes Handy hält die Seite an. Wenn du zurückkommst, holt das Spiel die verpasste Zeit in der eingestellten Geschwindigkeit nach — nach Regeln, ohne LLM. Die Spielpause stoppt auch diese Entwicklung.',
+      'away.title': 'Die Zivilisation lebte ohne dich weiter', 'away.rules': 'Während du weg warst, dachten die Siedler nach Regeln (ohne LLM).', 'away.stop': 'Genug, zeigen',
+      'away.days': 'Vergangene Tage', 'away.disc': 'Neue Entdeckungen', 'away.none': 'keine neuen Entdeckungen — ganz normales Leben', 'away.era': 'Neues Zeitalter',
+      'away.together': 'Gemeinsame Lösungen', 'away.births': 'Geboren', 'away.deaths': 'Gestorben', 'away.ok': 'Weiter zuschauen',
       'chip.off': 'LLM aus', 'chip.paused': 'LLM pausiert', 'chip.ok': 'LLM aktiv', 'chip.idle': 'LLM bereit', 'chip.down': 'LLM antwortet nicht', 'chip.limit': 'LLM: Limit erreicht',
       'llm.pauseBtn': 'Modell pausieren', 'llm.resumeBtn': 'Modell fortsetzen',
       'w.current': 'Aktuelle Zivilisation', 'w.name': 'Name', 'w.save': 'Jetzt speichern', 'w.savedAt': 'Gespeichert',
@@ -2678,7 +2724,7 @@ code { font: 12px var(--mono); background: var(--soft); padding: 1px 5px; border
     cfg, state,
     save() { try { localStorage.setItem('valley.llm', JSON.stringify(cfg)); } catch (e) { /* ок */ } },
     set(k, v) { cfg[k] = v; LLM.save(); if (k === 'enabled') { state.status = [v ? 'st.on' : 'st.off', {}]; state.health = ''; state.fails = 0; state.backoff = 0; } },
-    ready() { return cfg.enabled && !cfg.paused && !state.busy && performance.now() > state.backoff && (performance.now() - state.last) / 1000 > cfg.cooldown; },
+    ready() { return cfg.enabled && !cfg.paused && !state.suspended && !state.busy && performance.now() > state.backoff && (performance.now() - state.last) / 1000 > cfg.cooldown; },
     /* Загальний стан для індикатора: off | paused | limit | down | ok | idle */
     mode() {
       if (!cfg.enabled) return 'off';
@@ -3155,21 +3201,69 @@ D) композит (matrix + filler, f = частка наповнювача 0.
   function saveNow() {
     try {
       store.set('valley.world.' + civ.id, JSON.stringify(sim.serialize()));
-      Object.assign(civ, { seed: sim.seed, day: sim.day(), era: sim.era, pop: sim.npcs.length, updated: Date.now() });
+      Object.assign(civ, { seed: sim.seed, day: sim.day(), era: sim.era, pop: sim.npcs.length, updated: Date.now(), seenAt: Date.now(), speed, paused });
       saveIndex(); store.set('valley.active', civ.id);
       lastSaved = Date.now(); saveError = false;
     } catch (e) { saveError = true; }
     if (tab === 'worlds') renderWorlds();
   }
   function switchTo(newSim, entry) {
+    entry.seenAt = Date.now();
     sim = newSim; civ = entry;
     R.setSim(sim); R.sel = null; selMat = null; follow = false;
     try { store.set('valley.active', civ.id); } catch (e) { /* ок */ }
     lastChron = ''; renderStrip(true); renderPanel(true); header(true);
   }
-  setInterval(() => { if (!paused || Date.now() - lastSaved > 60000) saveNow(); }, 60000);
-  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') saveNow(); });
-  window.addEventListener('pagehide', saveNow);
+  setInterval(() => { if (!catching && (!paused || Date.now() - lastSaved > 60000)) saveNow(); }, 60000);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') { if (!catching) saveNow(); }
+    else if (civ.seenAt) catchUp(civ.seenAt);
+  });
+  window.addEventListener('pagehide', () => { if (!catching) saveNow(); });
+
+  /* ---------- розвиток, поки спостерігача немає ----------
+     Заблокований телефон зупиняє сторінку. Повернувшись, гра «доганяє»
+     пропущений час: крутить симуляцію без малювання, лише за правилами. */
+  let away = { on: true, cap: 20 };
+  try { away = Object.assign(away, JSON.parse(store.get('valley.away') || '{}')); } catch (e) { /* ок */ }
+  const saveAway = () => { try { store.set('valley.away', JSON.stringify(away)); } catch (e) { /* ок */ } };
+  let catching = null;
+  function catchUp(fromTs) {
+    if (!away.on || paused || catching || !fromTs) return;
+    const sec = (Date.now() - fromTs) / 1000;
+    const total = Math.min(Math.floor(sec * 10 * speed), away.cap * sim.DAY);
+    if (sec < 15 || total < sim.DAY / 12) return;
+    const before = { day: sim.day(), era: sim.era, disc: sim.discoveries.length, births: sim.stats.births, deaths: sim.dead.length, together: sim.chronicle.filter(c => c.kind === 'together').length, t: sim.tick };
+    catching = { total, done: 0, before, stop: false };
+    L.state.suspended = true;                 // під час наздоганяння модель не викликаємо
+    $('away').hidden = false; $('awaySummary').hidden = true; $('awayProgress').hidden = false;
+    const chunk = () => {
+      const t0 = performance.now();
+      while (catching.done < catching.total && !catching.stop && performance.now() - t0 < 40) { sim.step(); catching.done++; }
+      $('awayBar').style.width = (catching.done / catching.total * 100).toFixed(1) + '%';
+      $('awayText').textContent = `${u('day')} ${before.day} → ${sim.day()}`;
+      if (catching.done < catching.total && !catching.stop) setTimeout(chunk, 0); else finishCatchUp();
+    };
+    chunk();
+  }
+  function finishCatchUp() {
+    const b = catching.before, days = Math.max(1, Math.round((sim.tick - b.t) / sim.DAY));
+    catching = null; L.state.suspended = false;
+    sim.log(V.msg('log.away', { k: days }), 'system');
+    const disc = sim.discoveries.slice(b.disc).filter(d => d.kind !== 'improve');
+    const names = disc.map(d => d.kind === 'material' ? V.mn(d.id) : V.devName(d.dev));
+    const together = sim.chronicle.filter(c => c.kind === 'together').length - b.together;
+    const rows = [];
+    if (sim.era !== b.era) rows.push(`<li><b>${esc(u('away.era'))}:</b> ${esc(V.eraName(sim.era))}</li>`);
+    rows.push(`<li><b>${esc(u('away.disc'))}:</b> ${names.length ? esc(names.slice(0, 8).join(', ')) + (names.length > 8 ? ' …' : '') : esc(u('away.none'))}</li>`);
+    if (together > 0) rows.push(`<li>${esc(u('away.together'))}: ${together}</li>`);
+    const births = sim.stats.births - b.births, deaths = sim.dead.length - b.deaths;
+    if (births || deaths) rows.push(`<li>${esc(u('away.births'))}: ${births} · ${esc(u('away.deaths'))}: ${deaths}</li>`);
+    $('awayDays').textContent = `${u('away.days')}: ${days} (${u('day')} ${b.day} → ${sim.day()})`;
+    $('awayList').innerHTML = rows.join('');
+    $('awayProgress').hidden = true; $('awaySummary').hidden = false;
+    saveNow(); lastChron = ''; renderStrip(true); renderPanel(true); header(true);
+  }
 
   const canvas = $('world');
   const R = new V.Renderer(canvas, sim);
@@ -3289,6 +3383,10 @@ D) композит (matrix + filler, f = частка наповнювача 0.
     saveNow();
   });
   $('saveNow').addEventListener('click', saveNow);
+  $('awayOn').addEventListener('change', e => { away.on = e.target.checked; saveAway(); });
+  $('awayCap').addEventListener('change', e => { away.cap = +e.target.value; saveAway(); });
+  $('awayStop').addEventListener('click', () => { if (catching) catching.stop = true; });
+  $('awayOk').addEventListener('click', () => { $('away').hidden = true; });
   $('civName').addEventListener('change', e => { civ.name = e.target.value.trim(); saveIndex(); renderWorlds(); });
   $('civList').addEventListener('click', e => {
     const b = e.target.closest('button[data-act]'); if (!b) return;
@@ -3378,7 +3476,7 @@ D) композит (matrix + filler, f = частка наповнювача 0.
   /* ---------- головний цикл ---------- */
   function frame(now) {
     const dt = Math.min(0.25, (now - last) / 1000); last = now;
-    if (!paused) {
+    if (!paused && !catching) {
       acc += dt * 10 * speed;
       let steps = 0;
       const t0 = performance.now();
@@ -3561,6 +3659,7 @@ D) композит (matrix + filler, f = частка наповнювача 0.
   }
 
   function renderWorlds() {
+    $('awayOn').checked = away.on; $('awayCap').value = String(away.cap);
     if (document.activeElement !== $('civName')) $('civName').value = civ.name || '';
     $('civName').placeholder = civName(civ);
     $('civInfo').textContent = `${u('day')} ${sim.day()} · ${V.eraName(sim.era)} · ${sim.npcs.length} ${u('w.pop')} · ${u('worldNo')}${sim.seed}`;
@@ -3581,12 +3680,15 @@ D) композит (matrix + filler, f = частка наповнювача 0.
     $('llmLog').innerHTML = L.state.log.slice(0, 10).map(e => `<li class="${e.ok ? '' : 'bad'}"><b>${esc(V.nn(e.who))}</b>: ${esc(e.text || u('llm.noThought'))}${e.ok ? '' : ` <span class="muted">— ${u('llm.bad')}</span>`}</li>`).join('');
   }
 
-  setSpeed(1);
+  // відновлюємо швидкість і паузу, з якими цивілізацію залишили
+  setSpeed([1, 4, 15, 50].includes(civ.speed) ? civ.speed : 1);
+  if (civ.paused) $('pause').click();
   applyStatic();
   renderStrip(true);
   renderPanel(true);
   header(true);
   requestAnimationFrame(frame);
+  if (civ.seenAt) catchUp(civ.seenAt);
   V.ui = { get sim() { return sim; } };
 })(window.V = window.V || {});
 

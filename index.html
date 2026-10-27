@@ -159,6 +159,14 @@
         <p class="muted" data-i18n="w.auto"></p>
       </section>
       <section class="card">
+        <label class="row switch"><input type="checkbox" id="awayOn"> <span data-i18n="away.on"></span></label>
+        <div class="grid2">
+          <label for="awayCap" data-i18n="away.cap"></label>
+          <select id="awayCap"><option value="5">5</option><option value="20">20</option><option value="50">50</option><option value="100">100</option></select>
+        </div>
+        <p class="muted" data-i18n="away.note"></p>
+      </section>
+      <section class="card">
         <div class="row gap"><button class="btn" id="newWorld" data-i18n="w.new"></button></div>
         <p class="muted" data-i18n="w.newNote"></p>
       </section>
@@ -170,6 +178,23 @@
     </div>
   </aside>
 </main>
+
+<div class="away" id="away" hidden>
+  <div class="awaycard" role="dialog" aria-modal="true" aria-labelledby="awayTitle">
+    <h2 id="awayTitle" data-i18n="away.title"></h2>
+    <div id="awayProgress">
+      <p id="awayText" class="status"></p>
+      <div class="meter gold"><i id="awayBar" style="width:0%"></i></div>
+      <p class="muted" data-i18n="away.rules"></p>
+      <button class="btn ghost" id="awayStop" data-i18n="away.stop"></button>
+    </div>
+    <div id="awaySummary" hidden>
+      <p id="awayDays"></p>
+      <ul class="plain" id="awayList"></ul>
+      <button class="btn" id="awayOk" data-i18n="away.ok"></button>
+    </div>
+  </div>
+</div>
 
 <script src="js/i18n.js"></script>
 <script src="js/data.js"></script>

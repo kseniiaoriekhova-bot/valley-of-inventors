@@ -43,21 +43,69 @@
   function saveNow() {
     try {
       store.set('valley.world.' + civ.id, JSON.stringify(sim.serialize()));
-      Object.assign(civ, { seed: sim.seed, day: sim.day(), era: sim.era, pop: sim.npcs.length, updated: Date.now() });
+      Object.assign(civ, { seed: sim.seed, day: sim.day(), era: sim.era, pop: sim.npcs.length, updated: Date.now(), seenAt: Date.now(), speed, paused });
       saveIndex(); store.set('valley.active', civ.id);
       lastSaved = Date.now(); saveError = false;
     } catch (e) { saveError = true; }
     if (tab === 'worlds') renderWorlds();
   }
   function switchTo(newSim, entry) {
+    entry.seenAt = Date.now();
     sim = newSim; civ = entry;
     R.setSim(sim); R.sel = null; selMat = null; follow = false;
     try { store.set('valley.active', civ.id); } catch (e) { /* ок */ }
     lastChron = ''; renderStrip(true); renderPanel(true); header(true);
   }
-  setInterval(() => { if (!paused || Date.now() - lastSaved > 60000) saveNow(); }, 60000);
-  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') saveNow(); });
-  window.addEventListener('pagehide', saveNow);
+  setInterval(() => { if (!catching && (!paused || Date.now() - lastSaved > 60000)) saveNow(); }, 60000);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') { if (!catching) saveNow(); }
+    else if (civ.seenAt) catchUp(civ.seenAt);
+  });
+  window.addEventListener('pagehide', () => { if (!catching) saveNow(); });
+
+  /* ---------- розвиток, поки спостерігача немає ----------
+     Заблокований телефон зупиняє сторінку. Повернувшись, гра «доганяє»
+     пропущений час: крутить симуляцію без малювання, лише за правилами. */
+  let away = { on: true, cap: 20 };
+  try { away = Object.assign(away, JSON.parse(store.get('valley.away') || '{}')); } catch (e) { /* ок */ }
+  const saveAway = () => { try { store.set('valley.away', JSON.stringify(away)); } catch (e) { /* ок */ } };
+  let catching = null;
+  function catchUp(fromTs) {
+    if (!away.on || paused || catching || !fromTs) return;
+    const sec = (Date.now() - fromTs) / 1000;
+    const total = Math.min(Math.floor(sec * 10 * speed), away.cap * sim.DAY);
+    if (sec < 15 || total < sim.DAY / 12) return;
+    const before = { day: sim.day(), era: sim.era, disc: sim.discoveries.length, births: sim.stats.births, deaths: sim.dead.length, together: sim.chronicle.filter(c => c.kind === 'together').length, t: sim.tick };
+    catching = { total, done: 0, before, stop: false };
+    L.state.suspended = true;                 // під час наздоганяння модель не викликаємо
+    $('away').hidden = false; $('awaySummary').hidden = true; $('awayProgress').hidden = false;
+    const chunk = () => {
+      const t0 = performance.now();
+      while (catching.done < catching.total && !catching.stop && performance.now() - t0 < 40) { sim.step(); catching.done++; }
+      $('awayBar').style.width = (catching.done / catching.total * 100).toFixed(1) + '%';
+      $('awayText').textContent = `${u('day')} ${before.day} → ${sim.day()}`;
+      if (catching.done < catching.total && !catching.stop) setTimeout(chunk, 0); else finishCatchUp();
+    };
+    chunk();
+  }
+  function finishCatchUp() {
+    const b = catching.before, days = Math.max(1, Math.round((sim.tick - b.t) / sim.DAY));
+    catching = null; L.state.suspended = false;
+    sim.log(V.msg('log.away', { k: days }), 'system');
+    const disc = sim.discoveries.slice(b.disc).filter(d => d.kind !== 'improve');
+    const names = disc.map(d => d.kind === 'material' ? V.mn(d.id) : V.devName(d.dev));
+    const together = sim.chronicle.filter(c => c.kind === 'together').length - b.together;
+    const rows = [];
+    if (sim.era !== b.era) rows.push(`<li><b>${esc(u('away.era'))}:</b> ${esc(V.eraName(sim.era))}</li>`);
+    rows.push(`<li><b>${esc(u('away.disc'))}:</b> ${names.length ? esc(names.slice(0, 8).join(', ')) + (names.length > 8 ? ' …' : '') : esc(u('away.none'))}</li>`);
+    if (together > 0) rows.push(`<li>${esc(u('away.together'))}: ${together}</li>`);
+    const births = sim.stats.births - b.births, deaths = sim.dead.length - b.deaths;
+    if (births || deaths) rows.push(`<li>${esc(u('away.births'))}: ${births} · ${esc(u('away.deaths'))}: ${deaths}</li>`);
+    $('awayDays').textContent = `${u('away.days')}: ${days} (${u('day')} ${b.day} → ${sim.day()})`;
+    $('awayList').innerHTML = rows.join('');
+    $('awayProgress').hidden = true; $('awaySummary').hidden = false;
+    saveNow(); lastChron = ''; renderStrip(true); renderPanel(true); header(true);
+  }
 
   const canvas = $('world');
   const R = new V.Renderer(canvas, sim);
@@ -177,6 +225,10 @@
     saveNow();
   });
   $('saveNow').addEventListener('click', saveNow);
+  $('awayOn').addEventListener('change', e => { away.on = e.target.checked; saveAway(); });
+  $('awayCap').addEventListener('change', e => { away.cap = +e.target.value; saveAway(); });
+  $('awayStop').addEventListener('click', () => { if (catching) catching.stop = true; });
+  $('awayOk').addEventListener('click', () => { $('away').hidden = true; });
   $('civName').addEventListener('change', e => { civ.name = e.target.value.trim(); saveIndex(); renderWorlds(); });
   $('civList').addEventListener('click', e => {
     const b = e.target.closest('button[data-act]'); if (!b) return;
@@ -266,7 +318,7 @@
   /* ---------- головний цикл ---------- */
   function frame(now) {
     const dt = Math.min(0.25, (now - last) / 1000); last = now;
-    if (!paused) {
+    if (!paused && !catching) {
       acc += dt * 10 * speed;
       let steps = 0;
       const t0 = performance.now();
@@ -449,6 +501,7 @@
   }
 
   function renderWorlds() {
+    $('awayOn').checked = away.on; $('awayCap').value = String(away.cap);
     if (document.activeElement !== $('civName')) $('civName').value = civ.name || '';
     $('civName').placeholder = civName(civ);
     $('civInfo').textContent = `${u('day')} ${sim.day()} · ${V.eraName(sim.era)} · ${sim.npcs.length} ${u('w.pop')} · ${u('worldNo')}${sim.seed}`;
@@ -469,11 +522,14 @@
     $('llmLog').innerHTML = L.state.log.slice(0, 10).map(e => `<li class="${e.ok ? '' : 'bad'}"><b>${esc(V.nn(e.who))}</b>: ${esc(e.text || u('llm.noThought'))}${e.ok ? '' : ` <span class="muted">— ${u('llm.bad')}</span>`}</li>`).join('');
   }
 
-  setSpeed(1);
+  // відновлюємо швидкість і паузу, з якими цивілізацію залишили
+  setSpeed([1, 4, 15, 50].includes(civ.speed) ? civ.speed : 1);
+  if (civ.paused) $('pause').click();
   applyStatic();
   renderStrip(true);
   renderPanel(true);
   header(true);
   requestAnimationFrame(frame);
+  if (civ.seenAt) catchUp(civ.seenAt);
   V.ui = { get sim() { return sim; } };
 })(window.V = window.V || {});

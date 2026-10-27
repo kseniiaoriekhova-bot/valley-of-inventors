@@ -209,3 +209,12 @@ code { font: 12px var(--mono); background: var(--soft); padding: 1px 5px; border
 .llmlog li.bad { border-left-color: var(--bad); }
 
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+/* наздоганяння пропущеного часу */
+.away { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; background: color-mix(in srgb, var(--bg) 70%, transparent); backdrop-filter: blur(3px);
+  padding: max(16px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(16px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); }
+.awaycard { width: min(440px, 100%); background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 18px; display: grid; gap: 10px; box-shadow: 0 10px 40px rgba(0,0,0,0.18); }
+.awaycard h2 { font-size: 15px; }
+.awaycard .meter { height: 8px; margin: 6px 0; }
+.awaycard #awayProgress, .awaycard #awaySummary { display: grid; gap: 8px; }
+.awaycard #awaySummary[hidden], .awaycard #awayProgress[hidden] { display: none; }
