@@ -14,6 +14,7 @@
   const R = V.REWARD = {
     learn: 2, teach: 4, taught: 2, idea: 2, material: 15, useful: 20, invent: 40, partial: 5, fail: 1,
     improve: 10, impact: 0.3, help: 3, build: 5, hunt: 1.5, gather: 0.5, explore: 1,
+    solve: 6, brainstorm: 3, coinvent: 20,
   };
   const ACTS = ['gather', 'hunt', 'fish', 'experiment', 'teach', 'build', 'explore'];
   const msg = V.msg;
@@ -76,7 +77,7 @@
       know: new Set(), insp: 0, val: {}, task: null, carry: null, thought: ['th.look', {}], thoughtLLM: false,
       history: [], failures: new Set(), hints: {}, friends: {}, inventions: [], taughtCount: 0,
       hunts: 0, gathers: 0, heatTries: 0, ageTicks: parents ? 0 : this.DAY * 3, parents: parents ? parents.map(p => p.id) : null,
-      llmNote: '',
+      problems: {}, suggest: [],
     };
     for (const a of ACTS) n.val[a] = 3;
     const base = ['m:wood', 'm:fiber', 'm:stone', 'm:berries', 'm:water'];
@@ -268,6 +269,21 @@
       if (law) { if (this.stock(law.out) < 3 && law.out !== 'cooked') w = M[law.out].kind === 'metal' || law.out === 'charcoal' ? 6 : 2.5; else continue; }
       cands.push({ p, w: w * 1.0 });
     }
+    // поради, які дали інші, — пробуємо охоче
+    n.suggest = n.suggest.filter(sg => this.tick - sg.t < this.DAY * 4);
+    for (const sg of n.suggest) {
+      const b = o.build.find(x => x.idea === sg.idea);
+      if (!b || !b.slots[sg.si] || !b.slots[sg.si].includes(sg.mat)) continue;
+      const parts = b.slots.map((opts, i) => {
+        if (i === sg.si) return sg.mat;
+        const slot = V.IDEAS[b.idea].slots[i];
+        let best = opts[0], bs = -1;
+        for (const id of opts) { const sc = V.SLOT[slot].test(M[id]) + (rnd() - 0.5) * 0.3; if (sc > bs) { bs = sc; best = id; } }
+        return best;
+      });
+      const p = { type: 'build', idea: b.idea, parts, coauthor: sg.from, coMat: sg.mat };
+      if (!n.failures.has(sig({ type: 'build', idea: b.idea, parts }))) cands.push({ p, w: 7 });
+    }
     for (const b of o.build) {
       const smart = rnd() < 0.35 + n.skill.craft * 0.08;
       for (let tries = 0; tries < 3; tries++) {
@@ -311,8 +327,9 @@
   /* ---------- Виконання експерименту ---------- */
   P.runExperiment = function (n, plan) {
     this.attempts++; this.stats.experiments++;
+    if (plan.coauthor) n.suggest = n.suggest.filter(sg => !(sg.idea === plan.idea && sg.mat === plan.coMat));
     n.skill.craft += 0.05;
-    const sig = JSON.stringify(plan.type === 'alloy' || plan.type === 'composite' ? { t: plan.type } : plan);
+    const sig = JSON.stringify(plan.type === 'alloy' || plan.type === 'composite' ? { t: plan.type } : plan.type === 'build' ? { type: 'build', idea: plan.idea, parts: plan.parts } : plan);
     const fuel = this.bestFuel(n);
     const T = fuel ? this.temp(fuel) : { t: 0, raw: 0, cap: Infinity, enclosed: false };
 
@@ -322,7 +339,7 @@
       n.heatTries++;
       const res = V.heat(plan.inputs, T.t, T.enclosed);
       const ms = plan.inputs.slice();
-      if (T.raw > T.cap && !res.ok) { n.hints.wall = true; this.log(msg('log.wall', { n: n.name, cap: Math.round(T.cap) }), 'hint', n); }
+      if (T.raw > T.cap && !res.ok) { n.hints.wall = true; n.problems.wall = { cap: Math.round(T.cap) }; this.log(msg('log.wall', { n: n.name, cap: Math.round(T.cap) }), 'hint', n); }
       if (res.ok) {
         const out = res.out, k = out === 'cooked' ? 2 : 3;
         this.give(out, k);
@@ -336,12 +353,12 @@
           this.log(msg('log.discMat', { n: n.name, cold, ms, t: Math.round(T.t), m: out, law: res.law }), 'discovery', n);
           think(n, 'th.success', { m: out });
         } else { think(n, 'th.again', { m: out }); this.reward(n, 1, 'work'); }
-        n.hints.hotter = false;
+        n.hints.hotter = false; delete n.problems.hotter; delete n.problems.air;
         return;
       }
       n.failures.add(JSON.stringify(plan) + '@' + Math.round(T.t / 100));
-      if (res.hint === 'hotter') { n.hints.hotter = true; n.hints.hotterSet = plan.inputs.slice().sort().join('+'); this.reward(n, 3, 'observe'); this.log(msg('log.hint', { n: n.name, ms, note: res.note }), 'hint', n); }
-      else if (res.hint === 'air') { n.hints.air = true; this.reward(n, 3, 'observe'); this.log(msg('log.hint', { n: n.name, ms, note: res.note }), 'hint', n); }
+      if (res.hint === 'hotter') { n.problems.hotter = { ms, t: Math.round(T.t) }; n.hints.hotter = true; n.hints.hotterSet = plan.inputs.slice().sort().join('+'); this.reward(n, 3, 'observe'); this.log(msg('log.hint', { n: n.name, ms, note: res.note }), 'hint', n); }
+      else if (res.hint === 'air') { n.problems.air = { ms }; n.hints.air = true; this.reward(n, 3, 'observe'); this.log(msg('log.hint', { n: n.name, ms, note: res.note }), 'hint', n); }
       else this.reward(n, R.fail, 'fail');
       n.thought = res.note; n.thoughtLLM = false;
       this.checkIdeas(n);
@@ -377,7 +394,16 @@
             this.discoveries.push({ day: this.day(), kind: 'improve', id: plan.idea, dev: Object.assign({}, dev), by: n.id, parts, quality: ev.quality });
             this.log(msg('log.improve', { n: n.name, idea: plan.idea, parts, q0: cur.quality, q1: ev.quality }), 'improve', n);
           }
-          if (plan.idea === 'kiln') n.hints.wall = false;
+          if (plan.idea === 'kiln') { n.hints.wall = false; delete n.problems.wall; }
+          if (n.problems.device && n.problems.device.idea === plan.idea) delete n.problems.device;
+          const co = plan.coauthor && this.npcs.find(x => x.id === plan.coauthor);
+          if (co && co !== n) {
+            dev.co = co.name;
+            this.reward(co, isNew ? R.coinvent : R.improve, 'coinvent');
+            this.log(msg('log.together', { n: n.name, n2: co.name, idea: plan.idea, m: plan.coMat }), 'together', n);
+            n.friends[co.id] = (n.friends[co.id] || 0) + 15; co.friends[n.id] = (co.friends[n.id] || 0) + 15;
+            if (!co.know.has('d:' + plan.idea)) this.learn(co, 'd:' + plan.idea, 'taughtBy');
+          }
         } else {
           n.know.add('d:' + plan.idea);
           this.reward(n, 2, 'copied');
@@ -388,6 +414,7 @@
       }
       n.failures.add(sig);
       const weak = ev.weakSlot;
+      n.problems.device = { idea: plan.idea, slot: weak, si: idea.slots.indexOf(weak), parts: plan.parts.slice() };
       if (ev.partial) {
         this.reward(n, R.partial, 'partial');
         think(n, 'th.partial', { idea: plan.idea, slot: weak });
@@ -404,6 +431,7 @@
 
   P.fail = function (n, missing, plan) {
     think(n, 'th.cantStart', { m: missing });
+    n.problems.missing = { m: missing };
     this.reward(n, 0.2, 'fail');
     if (plan) n.goalMats = (plan.inputs || plan.parts || []).filter(id => this.stock(id) < 2 && V.BASE_RESOURCES.includes(id));
   };
@@ -429,6 +457,7 @@
       n.hints.hotter = true;
       this.reward(n, 2, 'observe');
       think(n, 'th.needHeat', { m: a, m2: b === 'charcoal' ? 'carbon' : b, t: need });
+      n.problems.hotter = { ms: [a, b], t: Math.round(T.t) };
       this.log(msg('log.needHeat', { n: n.name, m: a, m2: b === 'charcoal' ? 'carbon' : b, t: Math.round(T.t) }), 'hint', n);
       this.checkIdeas(n);
       return;
@@ -511,6 +540,7 @@
     const starving = n.hunger > 75;
     if (!starving && ((night && n.energy < 90) || n.energy < 18)) return this.setTask(n, 'sleep');
     if (n.hunger > 60) {
+      if (this.foodStock() < this.npcs.length) n.problems.food = { t: this.tick };
       if (this.foodStock() > 0) return this.setTask(n, 'eat');
       if (this.hasDev(n, 'net')) return this.setTask(n, 'fish');
       return this.setTask(n, rnd() < 0.5 ? 'hunt' : 'gather', { res: 'berries' });
@@ -798,8 +828,9 @@
         t.phase = 2; t.w = 0;
         const items = this.teachable(n, m);
         t.items = items.slice(0, 1 + Math.floor(n.skill.teach / 2.5));
-        t.lines = this.dialogue(n, m, t.items);
-        if (V.LLM && V.LLM.canChat()) V.LLM.chat(this, n, m, t.items).then(l => { if (l) t.lines = l; }).catch(() => {});
+        t.convo = this.converse(n, m, t.items);
+        t.lines = t.convo.lines;
+        if (V.LLM && V.LLM.canChat()) V.LLM.chat(this, n, m, t.convo).then(l => { if (l) t.lines = l; }).catch(() => {});
       }
     } else if (t.phase === 2) {
       t.w++;
@@ -808,6 +839,7 @@
         for (const k of t.items) if (this.learn(m, k, 'taughtBy')) { learned++; this.reward(m, R.taught, 'wasTaught'); }
         if (learned) { this.reward(n, R.teach * learned, 'teach'); n.taughtCount += learned; n.skill.teach += 0.1 * learned; this.stats.taught += learned; }
         else this.reward(n, 1, 'chat');
+        if (t.convo && t.convo.apply) t.convo.apply();
         // допомога голодному
         if (m.hunger > 55 && this.foodStock() > 0) {
           const f = FOODS.find(x => this.stock(x) > 0); this.take(f); m.hunger = Math.max(0, m.hunger - M[f].food);
@@ -818,12 +850,130 @@
         n.friends[m.id] = (n.friends[m.id] || 0) + 8; m.friends[n.id] = (m.friends[n.id] || 0) + 8;
         if (t.lines && t.lines.length) {
           n.lastLine = t.lines[0]; if (t.lines[1]) m.lastLine = t.lines[1];
-          if (learned && this.rnd() < 0.5) this.log(msg('log.talk', { n: n.name, n2: m.name, a: t.lines[0], b: t.lines[1] || null }), 'talk', n);
+          const worth = t.convo && t.convo.kind !== 'small';
+          if ((worth || learned) && this.rnd() < (worth ? 0.8 : 0.4)) this.log(msg('log.talk', { n: n.name, n2: m.name, a: t.lines[0], b: t.lines[1] || null }), 'talk', n);
         }
         if (m.task && m.task.type === 'listen') this.endTask(m);
         this.endTask(n);
       }
     }
+  };
+
+  /* ---------- Розмови: проблеми, поради, спільні рішення ----------
+     a — той, хто заговорив, b — співрозмовник. Повертає репліки і що зміниться після розмови. */
+  P.converse = function (a, b, items) {
+    const rnd = this.rnd, sim = this;
+    const both = (amt, why) => { sim.reward(a, amt, why); sim.reward(b, amt, why); };
+    const knownMats = npc => [...npc.know].filter(k => k.startsWith('m:')).map(k => k.slice(2)).filter(id => M[id] && M[id].kind !== 'food' && M[id].kind !== 'ore' && M[id].kind !== 'liquid');
+    const bestFor = (npc, slot, exclude) => {
+      let best = null, bs = -1;
+      for (const id of knownMats(npc)) { if (exclude && exclude.includes(id)) continue; const sc = V.SLOT[slot].test(M[id]); if (sc > bs) { bs = sc; best = id; } }
+      return best ? { id: best, score: bs } : null;
+    };
+    const solved = (prob) => { delete a.problems[prob]; both(R.solve, 'solved'); };
+
+    // 1. Проблема того, хто заговорив
+    const probs = Object.keys(a.problems).filter(p => p !== 'food' || this.foodStock() < this.npcs.length);
+    if (probs.length && rnd() < 0.75) {
+      const p = probs[Math.floor(rnd() * probs.length)], d = a.problems[p];
+      if (p === 'hotter' || p === 'air') {
+        const ask = p === 'hotter' ? msg('dlg.p.hotter', { ms: d.ms, t: d.t }) : msg('dlg.p.air', { ms: d.ms });
+        // хто знає кращу піч, міхи чи гарячіше паливо — підкаже
+        const fuels = ['coal', 'charcoal'].filter(f => b.know.has('m:' + f) && !a.know.has('m:' + f));
+        const tips = [];
+        if (p === 'air' && b.know.has('d:kiln') && !a.know.has('d:kiln')) tips.push('d:kiln');
+        if (p === 'air' && b.know.has('l:char') && !a.know.has('l:char')) tips.push('l:char');
+        if (p === 'hotter' && b.know.has('d:bellows') && !a.know.has('d:bellows')) tips.push('d:bellows');
+        if (p === 'hotter' && fuels.length) tips.push('m:' + fuels[0]);
+        if (p === 'hotter' && b.know.has('d:kiln') && !a.know.has('d:kiln')) tips.push('d:kiln');
+        if (tips.length) {
+          const k = tips[0];
+          return { kind: 'solve', lines: [ask, msg('dlg.s.know', { key: k })], topic: [ask, k],
+            apply() { sim.learn(a, k, 'taughtBy'); solved(p); sim.log(msg('log.solved', { n: b.name, n2: a.name, key: k }), 'together', b); } };
+        }
+        // ніхто не знає — думають удвох і доходять нової ідеї
+        const idea = sim.structures.kiln ? 'bellows' : 'kiln';
+        return { kind: 'brainstorm', lines: [ask, msg('dlg.b.' + idea)], topic: [ask, 'i:' + idea],
+          apply() {
+            const na = sim.learn(a, 'i:' + idea, 'brainstorm'), nb = sim.learn(b, 'i:' + idea, 'brainstorm');
+            if (na || nb) { both(R.brainstorm, 'brainstorm'); sim.log(msg('log.brainstorm', { n: a.name, n2: b.name, idea }), 'together', a); }
+          } };
+      }
+      if (p === 'wall') {
+        const ask = msg('dlg.p.wall', { cap: d.cap });
+        const mat = knownMats(b).filter(id => M[id].hp > d.cap + 100 && V.SLOT.wall.test(M[id]) >= 0.6).sort((x, y) => M[y].hp - M[x].hp)[0];
+        if (mat) return { kind: 'solve', lines: [ask, msg('dlg.s.wall', { m: mat })], topic: [ask, 'm:' + mat],
+          apply() { sim.learn(a, 'm:' + mat, 'taughtBy'); a.suggest.push({ idea: 'kiln', si: 0, mat, from: b.id, t: sim.tick }); solved('wall'); sim.logAdvice(b, a, 'kiln', 'wall', mat); } };
+        return { kind: 'brainstorm', lines: [ask, msg('dlg.b.wall')], topic: [ask], apply() { both(1, 'chat'); } };
+      }
+      if (p === 'device') {
+        const ask = msg('dlg.p.device', { idea: d.idea, slot: d.slot });
+        const known = bestFor(b, d.slot, [d.parts[d.si]]);
+        if (known && known.score >= 0.6) {
+          return { kind: 'solve', lines: [ask, msg('dlg.s.mat', { m: known.id, slot: d.slot })], topic: [ask, 'm:' + known.id],
+            apply() {
+              sim.learn(a, 'm:' + known.id, 'taughtBy');
+              a.suggest.push({ idea: d.idea, si: d.si, mat: known.id, from: b.id, t: sim.tick });
+              if (!b.know.has('i:' + d.idea)) sim.learn(b, 'i:' + d.idea, 'brainstorm');
+              both(R.solve, 'solved'); delete a.problems.device;
+              sim.logAdvice(b, a, d.idea, d.slot, known.id);
+            } };
+        }
+        // здогадка: найкраще, що знає співрозмовник, навіть якщо не певен
+        if (known) return { kind: 'brainstorm', lines: [ask, msg('dlg.g.mat', { m: known.id, slot: d.slot })], topic: [ask, 'm:' + known.id],
+          apply() { sim.learn(a, 'm:' + known.id, 'taughtBy'); a.suggest.push({ idea: d.idea, si: d.si, mat: known.id, from: b.id, t: sim.tick }); both(1, 'chat'); } };
+      }
+      if (p === 'missing' && d.m) {
+        const ask = msg('dlg.p.missing', { m: d.m });
+        if (b.know.has('m:' + d.m) && V.BASE_RESOURCES.includes(d.m) && sim.findRes(b, d.m)) {
+          return { kind: 'help', lines: [ask, msg('dlg.s.missing', { m: d.m })], topic: [ask],
+            apply() { b.goalMats = [d.m].concat(b.goalMats || []); delete a.problems.missing; both(2, 'solved'); } };
+        }
+      }
+      if (p === 'food') {
+        const ask = msg('dlg.p.food');
+        const dev = ['net', 'spear', 'pen', 'vessel'].find(id => b.know.has('d:' + id) && !a.know.has('d:' + id) && sim.devices[id]);
+        if (dev) return { kind: 'solve', lines: [ask, msg('dlg.s.food', { idea: dev })], topic: [ask, 'd:' + dev],
+          apply() { sim.learn(a, 'd:' + dev, 'taughtBy'); solved('food'); sim.log(msg('log.solved', { n: b.name, n2: a.name, key: 'd:' + dev }), 'together', b); } };
+        const idea = ['spear', 'net', 'pen'].find(id => !sim.devices[id] && !(a.know.has('i:' + id) && b.know.has('i:' + id)));
+        if (idea) return { kind: 'brainstorm', lines: [ask, msg('dlg.b.food', { idea })], topic: [ask, 'i:' + idea],
+          apply() { sim.learn(a, 'i:' + idea, 'brainstorm'); sim.learn(b, 'i:' + idea, 'brainstorm'); both(R.brainstorm, 'brainstorm'); } };
+      }
+    }
+
+    // 2. Поділитися власною ідеєю й попросити поради
+    const ideas = [...a.know].filter(k => k.startsWith('i:') && !this.devices[k.slice(2)]).map(k => k.slice(2));
+    if (ideas.length && rnd() < 0.5) {
+      const idea = ideas[Math.floor(rnd() * ideas.length)], slots = V.IDEAS[idea].slots;
+      const si = Math.floor(rnd() * slots.length);
+      const g = bestFor(b, slots[si]);
+      const say = msg('dlg.idea', { idea });
+      if (g) return { kind: 'idea', lines: [say, msg('dlg.g.mat', { m: g.id, slot: slots[si] })], topic: [say, 'm:' + g.id],
+        apply() {
+          sim.learn(a, 'm:' + g.id, 'taughtBy'); sim.learn(b, 'i:' + idea, 'brainstorm');
+          a.suggest.push({ idea, si, mat: g.id, from: b.id, t: sim.tick }); both(1.5, 'brainstorm');
+        } };
+    }
+
+    // 3. Розповісти новину: власний винахід чи відкриття
+    const mine = this.discoveries.filter(d => d.by === a.id && this.tick - this.DAY * (d.day - 1) < this.DAY * 3).pop();
+    if (mine && rnd() < 0.5) {
+      const say = mine.kind === 'material' ? msg('dlg.news.mat', { m: mine.id, n: a.name }) : msg('dlg.news.dev', { idea: mine.id });
+      return { kind: 'news', lines: [say, msg('dlg.news.a')], topic: [say] };
+    }
+
+    // 4. Звичайне навчання або балачки
+    const ln = this.dialogue(a, b, items);
+    return { kind: items.length ? 'teach' : 'small', lines: ln, topic: ln.slice(0, 1) };
+  };
+
+  /* Однакову пораду в хроніці показуємо не частіше разу на два дні */
+  P.logAdvice = function (from, to, idea, slot, mat) {
+    this.adviceSeen = this.adviceSeen || {};
+    const key = idea + slot + mat;
+    if (this.adviceSeen[key] && this.tick - this.adviceSeen[key] < this.DAY * 2) return;
+    this.adviceSeen[key] = this.tick;
+    this.log(msg('log.advice', { n: from.name, n2: to.name, m: mat, slot, idea }), 'together', from);
   };
 
   P.dialogue = function (a, b, items) {
@@ -897,6 +1047,9 @@
     if (this.structures.cell) era = 'electric';
     if (era !== this.era) { this.era = era; this.log(msg('log.era', { era }), 'era'); }
   };
+
+  P.wolfDied = function () { this.stats.wolfDeaths = (this.stats.wolfDeaths || 0) + 1; this.log(msg('log.wolfDied'), 'nature'); };
+  P.wolvesArrived = function () { this.log(msg('log.wolves'), 'nature'); };
 
   P.step = function () {
     this.tick++;

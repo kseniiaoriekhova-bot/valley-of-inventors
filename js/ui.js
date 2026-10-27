@@ -240,7 +240,8 @@
     lastChron = key;
     const want = c => chronFilter === 'all' ? true
       : chronFilter === 'discovery' ? ['discovery', 'improve', 'era'].includes(c.kind)
-        : chronFilter === 'life' ? ['life', 'birth', 'death', 'help', 'find'].includes(c.kind)
+        : chronFilter === 'life' ? ['life', 'birth', 'death', 'help', 'find', 'nature'].includes(c.kind)
+        : chronFilter === 'together' ? c.kind === 'together' || (c.kind === 'talk')
           : chronFilter === 'idea' ? ['idea', 'hint', 'try'].includes(c.kind)
             : c.kind === chronFilter;
     const items = sim.chronicle.filter(want).slice(-160).reverse();

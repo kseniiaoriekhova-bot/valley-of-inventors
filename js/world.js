@@ -128,9 +128,27 @@
     wolf: { name: 'вовк', speed: 0.1, cap: 8, breed: 0.0003, prey: false },
   };
 
+  /* Суходіл, з'єднаний із табором: тварини з'являються лише тут,
+     інакше вовк міг опинитися на острівці без здобичі й загинути */
+  V.mainLand = function (world) {
+    if (world.main) return world.main;
+    const seen = new Set(), q = [[Math.floor(world.camp.x), Math.floor(world.camp.y)]];
+    while (q.length) {
+      const [x, y] = q.pop(), k = y * world.W + x;
+      if (seen.has(k)) continue;
+      const t = world.at(x, y);
+      if (!t || !V.isLand(world, x + 0.5, y + 0.5)) continue;
+      seen.add(k);
+      q.push([x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]);
+    }
+    world.main = world.tiles.filter(t => seen.has(t.y * world.W + t.x));
+    return world.main;
+  };
+
   V.spawnAnimals = function (sim) {
     const { world, rnd } = sim;
-    const land = world.tiles.filter(t => t.t === V.TER.GRASS || t.t === V.TER.FOREST);
+    let land = V.mainLand(world).filter(t => t.t === V.TER.GRASS || t.t === V.TER.FOREST);
+    if (land.length < 50) land = world.tiles.filter(t => t.t === V.TER.GRASS || t.t === V.TER.FOREST);
     const add = (type, n) => {
       for (let i = 0; i < n; i++) {
         const t = land[Math.floor(rnd() * land.length)];
@@ -151,9 +169,9 @@
       const spec = V.ANIMALS[a.type];
       let speed = spec.speed * 0.45;
       if (a.type === 'wolf') {
-        a.hunger += 0.03;
-        if (a.hunger > 45) {
-          let prey = null, bd = 12;
+        a.hunger += 0.022;
+        if (a.hunger > 40) {
+          let prey = null, bd = a.hunger > 90 ? 26 : 16;   // голодний вовк шукає далі
           for (const b of animals) if (b.alive && b.type !== 'wolf') { const d = Math.hypot(b.x - a.x, b.y - a.y); if (d < bd) { bd = d; prey = b; } }
           if (prey) {
             a.dir = Math.atan2(prey.y - a.y, prey.x - a.x); speed = spec.speed;
@@ -163,8 +181,8 @@
         // вовки тримаються подалі від табору вдень
         const dc = Math.hypot(a.x - world.camp.x, a.y - world.camp.y);
         if (dc < 7 && !sim.isNight()) { a.dir = Math.atan2(a.y - world.camp.y, a.x - world.camp.x); speed = spec.speed; }
-        if (a.hunger > 160 && rnd() < 0.002) { a.alive = false; continue; }
-        if (a.hunger < 25 && counts.wolf < spec.cap && rnd() < spec.breed) born.push({ type: 'wolf', x: a.x, y: a.y });
+        if (a.hunger > 230 && rnd() < 0.001) { a.alive = false; counts.wolf--; if (sim.wolfDied) sim.wolfDied(a); continue; }
+        if (a.hunger < 35 && counts.wolf < spec.cap && rnd() < spec.breed) { born.push({ type: 'wolf', x: a.x, y: a.y }); a.hunger += 15; }
       } else {
         // травоїдні: тікають від вовків і від людей, що полюють
         let threat = null, bd = a.type === 'deer' ? 5 : 3.5;
@@ -178,7 +196,26 @@
       const nx = a.x + Math.cos(a.dir) * speed, ny = a.y + Math.sin(a.dir) * speed;
       if (V.isLand(world, nx, ny)) { a.x = nx; a.y = ny; } else a.dir += Math.PI * (0.5 + rnd());
     }
-    for (const b of born) { sim.animals.push({ id: sim.nextId++, type: b.type, x: b.x, y: b.y, dir: rnd() * 6.28, hunger: 0, alive: true }); counts[b.type]++; }
+    for (const b of born) {
+      sim.animals.push({ id: sim.nextId++, type: b.type, x: b.x, y: b.y, dir: rnd() * 6.28, hunger: 0, alive: true }); counts[b.type]++;
+      if (b.type === 'wolf' && sim.wolfBorn) sim.wolfBorn();
+    }
+    // нова зграя приходить у долину, якщо вовків майже не лишилося
+    if (sim.tick % (sim.DAY * 2) === 0 && counts.wolf < 2) {
+      const land = V.mainLand(world).filter(t => (t.t === V.TER.FOREST || t.t === V.TER.GRASS) && Math.hypot(t.x - world.camp.x, t.y - world.camp.y) > 15);
+      if (land.length) {
+        const t = land[Math.floor(rnd() * land.length)];
+        for (let i = 0; i < 2; i++) sim.animals.push({ id: sim.nextId++, type: 'wolf', x: t.x + 0.5, y: t.y + 0.5, dir: rnd() * 6.28, hunger: 20, alive: true });
+        if (sim.wolvesArrived) sim.wolvesArrived();
+      }
+    }
+    // так само повертаються травоїдні, якщо їх винищили
+    for (const type of ['rabbit', 'deer']) {
+      if (sim.tick % (sim.DAY * 3) === 0 && counts[type] < 3) {
+        const land = V.mainLand(world).filter(t => t.t === V.TER.FOREST || t.t === V.TER.GRASS);
+        for (let i = 0; i < 2 && land.length; i++) { const t = land[Math.floor(rnd() * land.length)]; sim.animals.push({ id: sim.nextId++, type, x: t.x + 0.5, y: t.y + 0.5, dir: rnd() * 6.28, hunger: 0, alive: true }); }
+      }
+    }
     if (sim.tick % 200 === 0) sim.animals = sim.animals.filter(a => a.alive);
     // відновлення риби та рослин
     if (sim.tick % 50 === 0) {

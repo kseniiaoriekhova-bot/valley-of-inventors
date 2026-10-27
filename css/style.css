@@ -109,6 +109,8 @@ h3 { font-size: 13px; margin: 14px 0 6px; color: var(--muted); font-weight: 500;
 .chron li.idea .t { color: var(--teal); }
 .chron li.death .t { color: var(--bad); }
 .chron li.talk .t { font-style: italic; }
+.chron li.together .t { color: var(--teal); font-weight: 500; }
+.chron li.nature .t { color: var(--muted); }
 .chron li .who { cursor: pointer; text-decoration: underline dotted; }
 
 /* мешканці */

@@ -146,6 +146,7 @@
 Уже є в поселенні: ${devs}.
 Підказки з досвіду: ${hints}.
 Мої невдалі спроби: ${fails || 'немає'}.
+Поради від інших поселенців: ${n.suggest.map(sg => `${V.ideaName(sg.idea)} — ${V.slotName(V.IDEAS[sg.idea].slots[sg.si])}: ${sg.mat}`).join('; ') || 'немає'}.
 
 Матеріали (id = назва: властивості):
 ${[...mats].map(matLine).join('\n')}
@@ -194,8 +195,10 @@ D) композит (matrix + filler, f = частка наповнювача 0.
   }
 
   /* ---------- Розмова ---------- */
-  LLM.chat = async function (sim, a, b, items) {
-    const topic = items.length ? items.map(V.knowName).join('; ') : 'щоденне життя';
+  LLM.chat = async function (sim, a, b, convo) {
+    const parts = (convo && convo.topic || []).map(x => Array.isArray(x) ? V.R(x) : typeof x === 'string' && /^[mdil]:/.test(x) ? V.knowName(x) : String(x));
+    const kinds = { solve: 'розповідає про проблему, і співрозмовник знає рішення', brainstorm: 'ділиться проблемою, і вони разом шукають рішення', idea: 'ділиться ідеєю, співрозмовник радить матеріал', help: 'просить допомоги', news: 'хвалиться відкриттям', teach: 'навчає', small: 'просто балакають' };
+    const topic = (kinds[convo && convo.kind] || 'розмова') + (parts.length ? ': ' + parts.join(' → ') : '');
     const sys = `Ти пишеш репліки двох поселенців первісної долини. Коротко (до 15 слів кожна), живо, ${V.lang === 'de' ? 'НІМЕЦЬКОЮ мовою (auf Deutsch)' : 'українською'}. Відповідай лише JSON {"a":"...","b":"..."}.`;
     const user = `${V.nn(a.name)} (${V.R(a.thought)}) розповідає ${V.nn(b.name)} про: ${topic}. ${V.nn(b.name)} зараз: ${V.R(b.thought)}. Епоха: ${V.eraName(sim.era)}.`;
     const j = await call([{ role: 'system', content: sys }, { role: 'user', content: user }], 120);
