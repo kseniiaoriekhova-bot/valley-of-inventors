@@ -197,6 +197,22 @@
     if (!V.walkable(this.world, n.x, n.y)) { n.x = this.world.camp.x; n.y = this.world.camp.y; }
     return false;
   };
+  /* Найближча до бажаного місця точка суходолу біля табору (майстерня, будівництво) */
+  P.nearCamp = function (dx, dy) {
+    this._spots = this._spots || {};
+    const key = dx + ',' + dy;
+    if (this._spots[key]) return this._spots[key];
+    const c = this.world.camp;
+    let best = { x: c.x, y: c.y }, bd = 1e9;
+    for (let j = -3; j <= 3; j++) for (let i = -3; i <= 3; i++) {
+      const x = c.x + dx + i * 0.5, y = c.y + dy + j * 0.5;
+      if (!V.walkable(this.world, x, y)) continue;
+      const d = Math.hypot(i, j) + Math.hypot(x - c.x, y - c.y) * 0.2;
+      if (d < bd) { bd = d; best = { x, y }; }
+    }
+    return (this._spots[key] = best);
+  };
+
   /* Місце поселенця біля вогнища — завжди на суходолі */
   P.campSpot = function (n) {
     if (n.spot) return n.spot;
@@ -733,6 +749,7 @@
       }
     } else if (t.phase === 3) {
       const s = this.campSpot(n);
+      if (!n.carry) { this.endTask(n); return; }   // ношу з'їли дорогою
       if (this.moveTo(n, s.x, s.y)) { this.give(n.carry.id, n.carry.k); this.reward(n, R.gather * n.carry.k, 'gather'); n.carry = null; this.endTask(n); }
     }
   };
@@ -769,6 +786,7 @@
       }
     } else if (t.phase === 2) {
       const s = this.campSpot(n);
+      if (!n.carry) { this.endTask(n); return; }   // здобич з'їли дорогою
       if (this.moveTo(n, s.x, s.y)) {
         this.give(n.carry.id, n.carry.k);
         for (const [id, k] of n.carry.extra || []) if (k > 0) this.give(id, k);
@@ -844,6 +862,7 @@
       }
     } else if (t.phase === 3) {
       const s = this.campSpot(n);
+      if (!n.carry) { this.endTask(n); return; }
       if (this.moveTo(n, s.x, s.y)) { this.give('fish', n.carry.k); n.carry = null; this.endTask(n); }
     }
   };
@@ -871,8 +890,8 @@
 
   P.doExperiment = function (n, t) {
     if (t.phase === 0) {
-      const ws = { x: this.world.camp.x + 1.6, y: this.world.camp.y - 0.4 };
-      if (!this.moveTo(n, ws.x, ws.y)) return;
+      const ws = this.nearCamp(1.6, -0.4);
+      if (!this.moveTo(n, ws.x, ws.y) && t.t < 300) return;   // не дійшов до майстерні — працює де стоїть
       const opts = this.experimentOptions(n);
       t.opts = opts;
       if (V.LLM && V.LLM.canPlan()) {
@@ -1100,8 +1119,8 @@
       t.phase = 1; t.w = 0; think(n, 'th.buildHouse');
     }
     if (t.phase === 1) {
-      const s = { x: this.world.camp.x - 2, y: this.world.camp.y + 1.5 };
-      if (this.moveTo(n, s.x, s.y)) { t.w++; if (t.w > 120) { this.houses++; this.reward(n, R.build, 'built'); this.log(msg('log.house', { n: n.name, k: this.houses }), 'life', n); this.endTask(n); } }
+      const s = this.nearCamp(-2, 1.5);
+      if (this.moveTo(n, s.x, s.y) || t.t > 400) { t.w++; if (t.w > 120) { this.houses++; this.reward(n, R.build, 'built'); this.log(msg('log.house', { n: n.name, k: this.houses }), 'life', n); this.endTask(n); } }
     }
   };
 

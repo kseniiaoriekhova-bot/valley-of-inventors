@@ -322,7 +322,7 @@
       acc += dt * 10 * speed;
       let steps = 0;
       const t0 = performance.now();
-      while (acc >= 1 && steps < 2000) { sim.step(); acc -= 1; steps++; if (steps % 50 === 0 && performance.now() - t0 > 28) { acc = 0; break; } }
+      while (acc >= 1 && steps < 2000) { try { sim.step(); } catch (e) { console.error(e); for (const n of sim.npcs) if (n.task && n.task.type !== 'sleep') n.task = null; } acc -= 1; steps++; if (steps % 50 === 0 && performance.now() - t0 > 28) { acc = 0; break; } }
     }
     if (follow && R.zoom > 1) { const n = sim.npcs.find(x => x.id === R.sel); if (n) centerOn(n, false); else follow = false; }
     R.draw(now);
